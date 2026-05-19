@@ -1,7 +1,12 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
+import { useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import type { Transaction } from "@shared/schema";
 
 interface TransactionTableProps {
@@ -9,6 +14,32 @@ interface TransactionTableProps {
 }
 
 export function TransactionTable({ transactions }: TransactionTableProps) {
+  const { toast } = useToast();
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return await apiRequest("DELETE", `/api/transactions/${id}`, undefined);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/portfolio/summary"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/portfolio/details"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/portfolio/allocation"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/portfolio/performance"] });
+      toast({
+        title: "Başarılı",
+        description: "İşlem başarıyla silindi",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Hata",
+        description: "İşlem silinirken bir hata oluştu",
+        variant: "destructive",
+      });
+    },
+  });
+
   const formatCurrency = (amount: number, currency: string) => {
     const symbols: Record<string, string> = {
       TRY: "₺",
@@ -39,6 +70,7 @@ export function TransactionTable({ transactions }: TransactionTableProps) {
             <TableHead className="text-right">Fiyat</TableHead>
             <TableHead className="text-right">Toplam</TableHead>
             <TableHead>Notlar</TableHead>
+            <TableHead className="w-[50px]"></TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -67,6 +99,17 @@ export function TransactionTable({ transactions }: TransactionTableProps) {
               </TableCell>
               <TableCell className="text-muted-foreground text-sm">
                 {transaction.notes || "-"}
+              </TableCell>
+              <TableCell>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => deleteMutation.mutate(transaction.id)}
+                  disabled={deleteMutation.isPending}
+                  data-testid={`button-delete-transaction-${transaction.id}`}
+                >
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
               </TableCell>
             </TableRow>
           ))}

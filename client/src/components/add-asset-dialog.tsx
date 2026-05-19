@@ -35,6 +35,8 @@ export function AddAssetDialog({ open, onOpenChange }: AddAssetDialogProps) {
     },
   });
 
+  const selectedType = form.watch("type");
+
   const fetchCurrentPrice = async () => {
     const symbol = form.getValues("symbol");
     const type = form.getValues("type");
@@ -126,7 +128,17 @@ export function AddAssetDialog({ open, onOpenChange }: AddAssetDialogProps) {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Varlık Türü</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select
+                        onValueChange={(val) => {
+                          field.onChange(val);
+                          if (val === "kripto") {
+                            form.setValue("market", "Binance");
+                          } else {
+                            form.setValue("market", "BIST");
+                          }
+                        }}
+                        defaultValue={field.value}
+                      >
                         <FormControl>
                           <SelectTrigger data-testid="select-asset-type">
                             <SelectValue />
@@ -150,16 +162,25 @@ export function AddAssetDialog({ open, onOpenChange }: AddAssetDialogProps) {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Borsa</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger data-testid="select-market">
                             <SelectValue />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="BIST">Borsa İstanbul</SelectItem>
-                          <SelectItem value="US">Amerikan Borsası</SelectItem>
-                          <SelectItem value="Diğer">Diğer</SelectItem>
+                          {selectedType === "kripto" ? (
+                            <>
+                              <SelectItem value="Binance">Binance</SelectItem>
+                              <SelectItem value="Diğer">Diğer</SelectItem>
+                            </>
+                          ) : (
+                            <>
+                              <SelectItem value="BIST">Borsa İstanbul</SelectItem>
+                              <SelectItem value="US">Amerikan Borsası</SelectItem>
+                              <SelectItem value="Diğer">Diğer</SelectItem>
+                            </>
+                          )}
                         </SelectContent>
                       </Select>
                       <FormMessage />
