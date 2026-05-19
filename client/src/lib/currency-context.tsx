@@ -19,6 +19,7 @@ interface CurrencyContextType {
   refreshRates: () => Promise<void>;
   convertFromTRY: (amountInTRY: number) => number;
   formatDisplayCurrency: (amountInTRY: number) => string;
+  formatAssetValue: (amount: number, fromCurrency: string) => string;
 }
 
 const defaultRates: ExchangeRates = {
@@ -81,6 +82,17 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
     XAU: "gr",
   };
 
+  const formatAssetValue = (amount: number, fromCurrency: string): string => {
+    let tryAmount = amount;
+    if (fromCurrency !== "TRY") {
+      const rate = exchangeRates[fromCurrency as keyof ExchangeRates];
+      if (rate && rate > 0) {
+        tryAmount = amount * rate;
+      }
+    }
+    return formatDisplayCurrency(tryAmount);
+  };
+
   const formatDisplayCurrency = (amountInTRY: number): string => {
     const converted = convertFromTRY(amountInTRY);
     const symbol = currencySymbols[displayCurrency];
@@ -110,6 +122,7 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
       refreshRates,
       convertFromTRY,
       formatDisplayCurrency,
+      formatAssetValue,
     }}>
       {children}
     </CurrencyContext.Provider>

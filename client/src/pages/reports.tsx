@@ -2,9 +2,12 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AssetAllocationChart } from "@/components/asset-allocation-chart";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useDisplayCurrency } from "@/lib/currency-context";
 import type { AssetAllocation, AssetDetail } from "@shared/schema";
 
 export default function Reports() {
+  const { formatDisplayCurrency, formatAssetValue } = useDisplayCurrency();
+
   const { data: allocation, isLoading: allocationLoading } = useQuery<AssetAllocation[]>({
     queryKey: ["/api/portfolio/allocation"],
   });
@@ -13,20 +16,12 @@ export default function Reports() {
     queryKey: ["/api/portfolio/details"],
   });
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("tr-TR", {
-      style: "currency",
-      currency: "TRY",
-      minimumFractionDigits: 2,
-    }).format(amount);
-  };
-
   const getAssetsByType = (type: string) => {
     return assets?.filter((asset) => asset.type === type) || [];
   };
 
   const getTotalByType = (type: string) => {
-    return getAssetsByType(type).reduce((sum, asset) => sum + (asset.totalValue || 0), 0);
+    return getAssetsByType(type).reduce((sum, asset) => sum + (asset.totalValueTRY || 0), 0);
   };
 
   return (
@@ -84,7 +79,7 @@ export default function Reports() {
                         <div className="text-sm text-muted-foreground">{count} varlık</div>
                       </div>
                       <div className="text-right">
-                        <div className="font-semibold">{formatCurrency(total)}</div>
+                        <div className="font-semibold">{formatDisplayCurrency(total)}</div>
                       </div>
                     </div>
                   );
@@ -127,11 +122,11 @@ export default function Reports() {
                           <div>
                             <div className="font-medium">{asset.name}</div>
                             <div className="text-sm text-muted-foreground">
-                              {asset.symbol} • {asset.market}
+                              {asset.symbol} • {asset.market} • {asset.currency}
                             </div>
                           </div>
                           <div className="text-right">
-                            <div className="font-semibold">{formatCurrency(asset.totalValue || 0)}</div>
+                            <div className="font-semibold">{formatAssetValue(asset.totalValue || 0, asset.currency)}</div>
                             <div className={`text-sm ${(asset.change || 0) >= 0 ? "text-success" : "text-destructive"}`}>
                               {(asset.change || 0) >= 0 ? "+" : ""}{(asset.change || 0).toFixed(2)}%
                             </div>

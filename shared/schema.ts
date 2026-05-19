@@ -87,7 +87,8 @@ export type MonthlyPerformance = {
 
 // Varlık detay görünümü için tip (tabloda gösterilecek)
 export type AssetDetail = Asset & {
-  totalValue: number; // Toplam Değer (quantity * currentPrice)
+  totalValue: number; // Toplam Değer (quantity * currentPrice) - native currency
+  totalValueTRY: number; // Toplam Değer TRY cinsinden (dönüşüm yapılmış)
   change: number; // Değişim (%)
   changeAmount: number; // Değişim (Tutar)
   profit: number; // Kar/Zarar

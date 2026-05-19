@@ -18,6 +18,7 @@ import {
   expenses
 } from "@shared/schema";
 import { db } from "./db";
+import { fetchExchangeRates, toTRY } from "./services/exchangeRateService";
 import { eq, desc, gte, lte, and } from "drizzle-orm";
 
 export interface IStorage {
@@ -154,18 +155,19 @@ export class DatabaseStorage implements IStorage {
   // Portfolio calculations
   async getPortfolioSummary(): Promise<PortfolioSummary> {
     const assets = await this.getAssets();
+    const rates = await fetchExchangeRates();
     
-    // Calculate total investment assets value
+    // Calculate total investment assets value (normalized to TRY)
     let investmentAssets = 0;
     assets.forEach((asset) => {
       const quantity = Number(asset.quantity) || 0;
       const currentPrice = Number(asset.currentPrice) || 0;
-      investmentAssets += quantity * currentPrice;
+      investmentAssets += toTRY(quantity * currentPrice, asset.currency, rates);
     });
     
-    // Get budget summary (income - expenses = cash balance)
+    // Get budget summary (income - expenses = cash balance) - already in TRY
     const budgetSummary = await this.getBudgetSummary();
-    const cashBalance = budgetSummary.balance; // income - expenses
+    const cashBalance = budgetSummary.balance;
     
     // Total assets = investment assets + cash balance (if positive)
     const totalAssets = investmentAssets + Math.max(0, cashBalance);
@@ -176,15 +178,14 @@ export class DatabaseStorage implements IStorage {
     // Net worth = total assets - total debt
     const netWorth = totalAssets - totalDebt;
     
-    // Calculate monthly change (simplified - comparing to average price)
+    // Calculate monthly change (normalized to TRY)
     let totalCost = 0;
     assets.forEach((asset) => {
       const quantity = Number(asset.quantity) || 0;
       const averagePrice = Number(asset.averagePrice) || 0;
-      totalCost += quantity * averagePrice;
+      totalCost += toTRY(quantity * averagePrice, asset.currency, rates);
     });
     
-    const totalValue = investmentAssets + cashBalance;
     const monthlyChange = totalCost > 0 ? ((investmentAssets - totalCost) / totalCost) * 100 : 0;
     const monthlyChangeAmount = investmentAssets - totalCost;
     
@@ -199,15 +200,16 @@ export class DatabaseStorage implements IStorage {
 
   async getAssetAllocation(): Promise<AssetAllocation[]> {
     const assets = await this.getAssets();
+    const rates = await fetchExchangeRates();
     
-    // Group by asset type
+    // Group by asset type (normalize values to TRY)
     const allocationMap = new Map<string, { value: number; count: number }>();
     let total = 0;
     
     assets.forEach((asset) => {
       const quantity = Number(asset.quantity) || 0;
       const currentPrice = Number(asset.currentPrice) || 0;
-      const value = quantity * currentPrice;
+      const value = toTRY(quantity * currentPrice, asset.currency, rates);
       total += value;
       
       const existing = allocationMap.get(asset.type) || { value: 0, count: 0 };
@@ -286,13 +288,14 @@ export class DatabaseStorage implements IStorage {
         }
       });
       
-      // Calculate total value using current prices
+      // Calculate total value using current prices (normalize to TRY)
       let totalValue = 0;
       const assets = await this.getAssets();
+      const rates = await fetchExchangeRates();
       assetValuesAtDate.forEach((value, assetId) => {
         const asset = assets.find(a => a.id === assetId);
         if (asset && value.quantity > 0) {
-          totalValue += value.quantity * (Number(asset.currentPrice) || 0);
+          totalValue += toTRY(value.quantity * (Number(asset.currentPrice) || 0), asset.currency, rates);
         }
       });
       
@@ -307,13 +310,15 @@ export class DatabaseStorage implements IStorage {
 
   async getAssetDetails(): Promise<AssetDetail[]> {
     const assets = await this.getAssets();
+    const rates = await fetchExchangeRates();
     
     return assets.map((asset) => {
       const quantity = Number(asset.quantity) || 0;
       const currentPrice = Number(asset.currentPrice) || 0;
       const averagePrice = Number(asset.averagePrice) || 0;
       
-      const totalValue = quantity * currentPrice;
+      const totalValue = quantity * currentPrice; // native currency
+      const totalValueTRY = toTRY(totalValue, asset.currency, rates); // normalized to TRY
       const totalCost = quantity * averagePrice;
       const profit = totalValue - totalCost;
       const change = totalCost > 0 ? ((currentPrice - averagePrice) / averagePrice) * 100 : 0;
@@ -322,6 +327,7 @@ export class DatabaseStorage implements IStorage {
       return {
         ...asset,
         totalValue,
+        totalValueTRY,
         change,
         changeAmount,
         profit,

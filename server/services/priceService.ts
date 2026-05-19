@@ -1,4 +1,5 @@
 import { storage } from "../storage";
+export { fetchExchangeRates } from "./exchangeRateService";
 
 interface BinancePriceResponse {
   symbol: string;
@@ -143,59 +144,3 @@ export async function fetchSingleAssetPrice(
   return null;
 }
 
-async function fetchCoinGeckoPrice(coinId: string): Promise<number | null> {
-  try {
-    const response = await fetch(
-      `https://api.coingecko.com/api/v3/simple/price?ids=${coinId}&vs_currencies=usd`,
-      {
-        headers: {
-          "Accept": "application/json",
-        },
-      }
-    );
-    
-    if (!response.ok) {
-      console.log(`CoinGecko API error for ${coinId}: ${response.status}`);
-      return null;
-    }
-    
-    const data = await response.json();
-    return data[coinId]?.usd || null;
-  } catch (error) {
-    console.error(`Failed to fetch CoinGecko price for ${coinId}:`, error);
-    return null;
-  }
-}
-
-export async function fetchExchangeRates(): Promise<Record<string, number>> {
-  const rates: Record<string, number> = { TRY: 1 };
-  
-  // Fetch USD/TRY 
-  const usdTry = await fetchYahooPrice("USDTRY=X", "Diğer");
-  if (usdTry) rates.USD = usdTry;
-  
-  // Fetch EUR/TRY
-  const eurTry = await fetchYahooPrice("EURTRY=X", "Diğer");
-  if (eurTry) rates.EUR = eurTry;
-  
-  // Fetch BTC price in USD - try Binance first, fallback to CoinGecko
-  let btcUsd = await fetchBinancePrice("BTC");
-  if (!btcUsd) {
-    btcUsd = await fetchCoinGeckoPrice("bitcoin");
-  }
-  if (btcUsd && usdTry) rates.BTC = btcUsd * usdTry;
-  
-  // Fetch ETH price in USD - try Binance first, fallback to CoinGecko
-  let ethUsd = await fetchBinancePrice("ETH");
-  if (!ethUsd) {
-    ethUsd = await fetchCoinGeckoPrice("ethereum");
-  }
-  if (ethUsd && usdTry) rates.ETH = ethUsd * usdTry;
-  
-  // Gold price (XAU/USD then convert to TRY per gram)
-  // 1 troy oz = 31.1035 grams
-  const goldOzUsd = await fetchYahooPrice("GC=F", "Diğer");
-  if (goldOzUsd && usdTry) rates.XAU = (goldOzUsd / 31.1035) * usdTry;
-  
-  return rates;
-}
