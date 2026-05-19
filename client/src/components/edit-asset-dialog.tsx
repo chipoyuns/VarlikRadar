@@ -5,24 +5,28 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { insertAssetSchema, type InsertAsset } from "@shared/schema";
+import { insertAssetSchema } from "@shared/schema";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { RefreshCw } from "lucide-react";
-import { useState } from "react";
+import type { AssetDetail } from "@shared/schema";
+import { z } from "zod";
+import { useEffect } from "react";
 
-interface AddAssetDialogProps {
+const editAssetSchema = insertAssetSchema.partial();
+type EditAsset = z.infer<typeof editAssetSchema>;
+
+interface EditAssetDialogProps {
+  asset: AssetDetail | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-export function AddAssetDialog({ open, onOpenChange }: AddAssetDialogProps) {
+export function EditAssetDialog({ asset, open, onOpenChange }: EditAssetDialogProps) {
   const { toast } = useToast();
-  const [isFetchingPrice, setIsFetchingPrice] = useState(false);
-  
-  const form = useForm<InsertAsset>({
-    resolver: zodResolver(insertAssetSchema),
+
+  const form = useForm<EditAsset>({
+    resolver: zodResolver(editAssetSchema),
     defaultValues: {
       type: "hisse",
       name: "",
@@ -35,53 +39,26 @@ export function AddAssetDialog({ open, onOpenChange }: AddAssetDialogProps) {
     },
   });
 
+  useEffect(() => {
+    if (asset && open) {
+      form.reset({
+        type: asset.type as any,
+        name: asset.name,
+        symbol: asset.symbol,
+        market: asset.market,
+        quantity: String(asset.quantity),
+        averagePrice: String(asset.averagePrice),
+        currentPrice: String(asset.currentPrice),
+        currency: asset.currency,
+      });
+    }
+  }, [asset, open]);
+
   const selectedType = form.watch("type");
 
-  const fetchCurrentPrice = async () => {
-    const symbol = form.getValues("symbol");
-    const type = form.getValues("type");
-    const market = form.getValues("market");
-
-    if (!symbol) {
-      toast({
-        title: "Uyarı",
-        description: "Lütfen önce sembol giriniz",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsFetchingPrice(true);
-    try {
-      const response = await fetch(`/api/prices/${symbol}?type=${type}&market=${market}`);
-      if (response.ok) {
-        const data = await response.json();
-        form.setValue("currentPrice", data.price.toFixed(2));
-        toast({
-          title: "Fiyat Güncellendi",
-          description: `${symbol} güncel fiyatı: ${data.price.toFixed(2)}`,
-        });
-      } else {
-        toast({
-          title: "Fiyat Bulunamadı",
-          description: "Bu sembol için fiyat bilgisi alınamadı",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      toast({
-        title: "Hata",
-        description: "Fiyat bilgisi alınırken bir hata oluştu",
-        variant: "destructive",
-      });
-    } finally {
-      setIsFetchingPrice(false);
-    }
-  };
-
-  const createMutation = useMutation({
-    mutationFn: async (data: InsertAsset) => {
-      return await apiRequest("POST", "/api/assets", data);
+  const updateMutation = useMutation({
+    mutationFn: async (data: EditAsset) => {
+      return await apiRequest("PATCH", `/api/assets/${asset?.id}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/assets"] });
@@ -89,36 +66,26 @@ export function AddAssetDialog({ open, onOpenChange }: AddAssetDialogProps) {
       queryClient.invalidateQueries({ queryKey: ["/api/portfolio/allocation"] });
       queryClient.invalidateQueries({ queryKey: ["/api/portfolio/performance"] });
       queryClient.invalidateQueries({ queryKey: ["/api/portfolio/details"] });
-      toast({
-        title: "Başarılı",
-        description: "Varlık başarıyla eklendi",
-      });
-      form.reset();
+      toast({ title: "Başarılı", description: "Varlık başarıyla güncellendi" });
       onOpenChange(false);
     },
-    onError: (error: any) => {
-      toast({
-        title: "Hata",
-        description: error?.message || "Varlık eklenirken bir hata oluştu",
-        variant: "destructive",
-      });
+    onError: () => {
+      toast({ title: "Hata", description: "Varlık güncellenirken bir hata oluştu", variant: "destructive" });
     },
   });
 
-  const onSubmit = (data: InsertAsset) => {
-    createMutation.mutate(data);
+  const onSubmit = (data: EditAsset) => {
+    updateMutation.mutate(data);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[525px]" data-testid="dialog-add-asset">
+      <DialogContent className="sm:max-w-[525px]">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
             <DialogHeader>
-              <DialogTitle>Yeni Varlık Ekle</DialogTitle>
-              <DialogDescription>
-                Portföyünüze yeni bir varlık ekleyin
-              </DialogDescription>
+              <DialogTitle>Varlığı Düzenle</DialogTitle>
+              <DialogDescription>Varlık bilgilerini güncelleyin</DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-2 gap-4">
@@ -128,21 +95,9 @@ export function AddAssetDialog({ open, onOpenChange }: AddAssetDialogProps) {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Varlık Türü</FormLabel>
-                      <Select
-                        onValueChange={(val) => {
-                          field.onChange(val);
-                          if (val === "kripto") {
-                            form.setValue("market", "Binance");
-                            form.setValue("currency", "USD");
-                          } else {
-                            form.setValue("market", "BIST");
-                            form.setValue("currency", "TRY");
-                          }
-                        }}
-                        defaultValue={field.value}
-                      >
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
-                          <SelectTrigger data-testid="select-asset-type">
+                          <SelectTrigger>
                             <SelectValue />
                           </SelectTrigger>
                         </FormControl>
@@ -157,7 +112,6 @@ export function AddAssetDialog({ open, onOpenChange }: AddAssetDialogProps) {
                     </FormItem>
                   )}
                 />
-
                 <FormField
                   control={form.control}
                   name="market"
@@ -166,7 +120,7 @@ export function AddAssetDialog({ open, onOpenChange }: AddAssetDialogProps) {
                       <FormLabel>Borsa</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
-                          <SelectTrigger data-testid="select-market">
+                          <SelectTrigger>
                             <SelectValue />
                           </SelectTrigger>
                         </FormControl>
@@ -198,26 +152,7 @@ export function AddAssetDialog({ open, onOpenChange }: AddAssetDialogProps) {
                   <FormItem>
                     <FormLabel>Varlık Adı</FormLabel>
                     <FormControl>
-                      <Input placeholder="örn: Türk Hava Yolları" {...field} data-testid="input-asset-name" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="symbol"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Sembol/Ticker</FormLabel>
-                    <FormControl>
-                      <Input 
-                        placeholder="örn: THYAO" 
-                        {...field}
-                        onChange={(e) => field.onChange(e.target.value.toUpperCase())}
-                        data-testid="input-asset-symbol" 
-                      />
+                      <Input {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -232,22 +167,21 @@ export function AddAssetDialog({ open, onOpenChange }: AddAssetDialogProps) {
                     <FormItem>
                       <FormLabel>Miktar</FormLabel>
                       <FormControl>
-                        <Input type="number" step="0.00000001" placeholder="0" {...field} data-testid="input-quantity" />
+                        <Input type="number" step="0.00000001" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-
                 <FormField
                   control={form.control}
                   name="currency"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Para Birimi</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
-                          <SelectTrigger data-testid="select-currency">
+                          <SelectTrigger>
                             <SelectValue />
                           </SelectTrigger>
                         </FormControl>
@@ -271,34 +205,21 @@ export function AddAssetDialog({ open, onOpenChange }: AddAssetDialogProps) {
                     <FormItem>
                       <FormLabel>Ortalama Alış Fiyatı</FormLabel>
                       <FormControl>
-                        <Input type="number" step="0.01" placeholder="0.00" {...field} data-testid="input-average-price" />
+                        <Input type="number" step="0.01" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-
                 <FormField
                   control={form.control}
                   name="currentPrice"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Güncel Fiyat</FormLabel>
-                      <div className="flex gap-2">
-                        <FormControl>
-                          <Input type="number" step="0.01" placeholder="0.00" {...field} data-testid="input-current-price" />
-                        </FormControl>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="icon"
-                          onClick={fetchCurrentPrice}
-                          disabled={isFetchingPrice}
-                          data-testid="button-fetch-price"
-                        >
-                          <RefreshCw className={`h-4 w-4 ${isFetchingPrice ? "animate-spin" : ""}`} />
-                        </Button>
-                      </div>
+                      <FormControl>
+                        <Input type="number" step="0.01" {...field} />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -306,11 +227,11 @@ export function AddAssetDialog({ open, onOpenChange }: AddAssetDialogProps) {
               </div>
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)} data-testid="button-cancel">
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 İptal
               </Button>
-              <Button type="submit" disabled={createMutation.isPending} data-testid="button-submit">
-                {createMutation.isPending ? "Ekleniyor..." : "Varlık Ekle"}
+              <Button type="submit" disabled={updateMutation.isPending}>
+                {updateMutation.isPending ? "Kaydediliyor..." : "Kaydet"}
               </Button>
             </DialogFooter>
           </form>

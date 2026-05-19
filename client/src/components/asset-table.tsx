@@ -1,10 +1,12 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Trash2, TrendingUp, TrendingDown } from "lucide-react";
+import { Trash2, TrendingUp, TrendingDown, Pencil } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
+import { useState } from "react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { AssetDetail } from "@shared/schema";
+import { EditAssetDialog } from "./edit-asset-dialog";
 
 interface AssetTableProps {
   assets: AssetDetail[];
@@ -12,6 +14,7 @@ interface AssetTableProps {
 
 export function AssetTable({ assets }: AssetTableProps) {
   const { toast } = useToast();
+  const [editAsset, setEditAsset] = useState<AssetDetail | null>(null);
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -23,26 +26,15 @@ export function AssetTable({ assets }: AssetTableProps) {
       queryClient.invalidateQueries({ queryKey: ["/api/portfolio/allocation"] });
       queryClient.invalidateQueries({ queryKey: ["/api/portfolio/performance"] });
       queryClient.invalidateQueries({ queryKey: ["/api/portfolio/details"] });
-      toast({
-        title: "Başarılı",
-        description: "Varlık başarıyla silindi",
-      });
+      toast({ title: "Başarılı", description: "Varlık başarıyla silindi" });
     },
     onError: () => {
-      toast({
-        title: "Hata",
-        description: "Varlık silinirken bir hata oluştu",
-        variant: "destructive",
-      });
+      toast({ title: "Hata", description: "Varlık silinirken bir hata oluştu", variant: "destructive" });
     },
   });
 
   const formatCurrency = (amount: number | undefined, currency: string) => {
-    const symbols: Record<string, string> = {
-      TRY: "₺",
-      USD: "$",
-      EUR: "€",
-    };
+    const symbols: Record<string, string> = { TRY: "₺", USD: "$", EUR: "€" };
     const value = amount ?? 0;
     return `${symbols[currency] || ""}${value.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
@@ -68,67 +60,81 @@ export function AssetTable({ assets }: AssetTableProps) {
   }
 
   return (
-    <div className="rounded-md border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Varlık</TableHead>
-            <TableHead>Tip</TableHead>
-            <TableHead>Borsa</TableHead>
-            <TableHead className="text-right">Miktar</TableHead>
-            <TableHead className="text-right">Ort. Fiyat</TableHead>
-            <TableHead className="text-right">Güncel Fiyat</TableHead>
-            <TableHead className="text-right">Toplam Değer</TableHead>
-            <TableHead className="text-right">Değişim</TableHead>
-            <TableHead className="text-right">Kar/Zarar (Toplam)</TableHead>
-            <TableHead className="w-[50px]"></TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {assets.map((asset) => (
-            <TableRow key={asset.id} data-testid={`asset-row-${asset.id}`}>
-              <TableCell className="font-medium">
-                <div>
-                  <div>{asset.name}</div>
-                  <div className="text-sm text-muted-foreground">{asset.symbol}</div>
-                </div>
-              </TableCell>
-              <TableCell>{assetTypeNames[asset.type] || asset.type}</TableCell>
-              <TableCell>{asset.market}</TableCell>
-              <TableCell className="text-right">{Number(asset.quantity).toLocaleString("tr-TR", { maximumFractionDigits: 8 })}</TableCell>
-              <TableCell className="text-right">{formatCurrency(Number(asset.averagePrice), asset.currency)}</TableCell>
-              <TableCell className="text-right">{formatCurrency(Number(asset.currentPrice), asset.currency)}</TableCell>
-              <TableCell className="text-right font-medium">{formatCurrency(asset.totalValue, asset.currency)}</TableCell>
-              <TableCell className="text-right">
-                <div className={`flex items-center justify-end gap-1 ${asset.change >= 0 ? "text-success" : "text-destructive"}`}>
-                  {asset.change >= 0 ? (
-                    <TrendingUp className="h-4 w-4" />
-                  ) : (
-                    <TrendingDown className="h-4 w-4" />
-                  )}
-                  <span>{formatPercent(asset.change)}</span>
-                </div>
-              </TableCell>
-              <TableCell className="text-right font-medium">
-                <span className={`${(asset.profit ?? 0) >= 0 ? "text-success" : "text-destructive"}`}>
-                  {(asset.profit ?? 0) >= 0 ? "+" : ""}{formatCurrency(asset.profit, asset.currency)}
-                </span>
-              </TableCell>
-              <TableCell>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => deleteMutation.mutate(asset.id)}
-                  disabled={deleteMutation.isPending}
-                  data-testid={`button-delete-${asset.id}`}
-                >
-                  <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
-              </TableCell>
+    <>
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Varlık</TableHead>
+              <TableHead>Tip</TableHead>
+              <TableHead>Borsa</TableHead>
+              <TableHead className="text-right">Miktar</TableHead>
+              <TableHead className="text-right">Ort. Fiyat</TableHead>
+              <TableHead className="text-right">Güncel Fiyat</TableHead>
+              <TableHead className="text-right">Toplam Değer</TableHead>
+              <TableHead className="text-right">Değişim</TableHead>
+              <TableHead className="text-right">Kar/Zarar</TableHead>
+              <TableHead className="w-[100px]"></TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+          </TableHeader>
+          <TableBody>
+            {assets.map((asset) => (
+              <TableRow key={asset.id} data-testid={`asset-row-${asset.id}`}>
+                <TableCell className="font-medium">
+                  <div>
+                    <div>{asset.name}</div>
+                    <div className="text-sm text-muted-foreground">{asset.symbol} · {asset.currency}</div>
+                  </div>
+                </TableCell>
+                <TableCell>{assetTypeNames[asset.type] || asset.type}</TableCell>
+                <TableCell>{asset.market}</TableCell>
+                <TableCell className="text-right">{Number(asset.quantity).toLocaleString("tr-TR", { maximumFractionDigits: 8 })}</TableCell>
+                <TableCell className="text-right">{formatCurrency(Number(asset.averagePrice), asset.currency)}</TableCell>
+                <TableCell className="text-right">{formatCurrency(Number(asset.currentPrice), asset.currency)}</TableCell>
+                <TableCell className="text-right font-medium">{formatCurrency(asset.totalValue, asset.currency)}</TableCell>
+                <TableCell className="text-right">
+                  <div className={`flex items-center justify-end gap-1 ${asset.change >= 0 ? "text-success" : "text-destructive"}`}>
+                    {asset.change >= 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
+                    <span>{formatPercent(asset.change)}</span>
+                  </div>
+                </TableCell>
+                <TableCell className="text-right font-medium">
+                  <span className={`${(asset.profit ?? 0) >= 0 ? "text-success" : "text-destructive"}`}>
+                    {(asset.profit ?? 0) >= 0 ? "+" : ""}{formatCurrency(asset.profit, asset.currency)}
+                  </span>
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setEditAsset(asset)}
+                      data-testid={`button-edit-${asset.id}`}
+                    >
+                      <Pencil className="h-4 w-4 text-muted-foreground" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => deleteMutation.mutate(asset.id)}
+                      disabled={deleteMutation.isPending}
+                      data-testid={`button-delete-${asset.id}`}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+
+      <EditAssetDialog
+        asset={editAsset}
+        open={editAsset !== null}
+        onOpenChange={(open) => { if (!open) setEditAsset(null); }}
+      />
+    </>
   );
 }
