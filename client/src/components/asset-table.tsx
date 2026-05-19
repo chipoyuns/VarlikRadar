@@ -80,6 +80,8 @@ export function AssetTable({ assets }: AssetTableProps) {
             <TableHead className="text-right">Güncel Fiyat</TableHead>
             <TableHead className="text-right">Toplam Değer</TableHead>
             <TableHead className="text-right">Değişim</TableHead>
+            <TableHead className="text-right">Kar/Zarar (Birim)</TableHead>
+            <TableHead className="text-right">Kar/Zarar (Toplam)</TableHead>
             <TableHead className="w-[50px]"></TableHead>
           </TableRow>
         </TableHeader>
@@ -107,6 +109,16 @@ export function AssetTable({ assets }: AssetTableProps) {
                   )}
                   <span>{formatPercent(asset.change)}</span>
                 </div>
+              </TableCell>
+              <TableCell className="text-right">
+                <span className={`${(asset.changeAmount ?? 0) >= 0 ? "text-success" : "text-destructive"}`}>
+                  {(asset.changeAmount ?? 0) >= 0 ? "+" : ""}{formatCurrency(asset.changeAmount, asset.currency)}
+                </span>
+              </TableCell>
+              <TableCell className="text-right font-medium">
+                <span className={`${(asset.profit ?? 0) >= 0 ? "text-success" : "text-destructive"}`}>
+                  {(asset.profit ?? 0) >= 0 ? "+" : ""}{formatCurrency(asset.profit, asset.currency)}
+                </span>
               </TableCell>
               <TableCell>
                 <Button
