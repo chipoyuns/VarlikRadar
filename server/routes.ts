@@ -103,6 +103,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.patch("/api/transactions/:id", async (req, res) => {
+    try {
+      const validated = insertTransactionSchema.partial().parse(req.body);
+      const transaction = await storage.updateTransaction(req.params.id, validated);
+      if (!transaction) {
+        return res.status(404).json({ error: "Transaction not found" });
+      }
+      res.json(transaction);
+    } catch (error) {
+      res.status(400).json({ error: "Invalid transaction data" });
+    }
+  });
+
   app.delete("/api/transactions/:id", async (req, res) => {
     try {
       const deleted = await storage.deleteTransaction(req.params.id);

@@ -47,7 +47,7 @@ export function AssetTable({ assets }: AssetTableProps) {
     hisse: "Hisse",
     etf: "ETF",
     kripto: "Kripto",
-    gayrimenkul: "Gayrimenkul",
+    madeni_para: "Madeni Para",
   };
 
   if (assets.length === 0) {

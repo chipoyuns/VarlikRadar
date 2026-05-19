@@ -1,6 +1,7 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, TrendingUp, TrendingDown, RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { AddAssetDialog } from "@/components/add-asset-dialog";
@@ -226,7 +227,30 @@ export default function Dashboard() {
               Varlıklar yüklenirken bir hata oluştu
             </div>
           ) : (
-            <AssetTable assets={assets || []} />
+            <Tabs defaultValue="tumu" data-testid="tabs-assets">
+              <TabsList className="mb-4">
+                <TabsTrigger value="tumu" data-testid="tab-tumu">Tümü</TabsTrigger>
+                <TabsTrigger value="hisse" data-testid="tab-hisse">Hisse Senedi</TabsTrigger>
+                <TabsTrigger value="kripto" data-testid="tab-kripto">Kripto</TabsTrigger>
+                <TabsTrigger value="etf" data-testid="tab-etf">ETF</TabsTrigger>
+                <TabsTrigger value="madeni_para" data-testid="tab-madeni-para">Madeni Para</TabsTrigger>
+              </TabsList>
+              <TabsContent value="tumu">
+                <AssetTable assets={assets || []} />
+              </TabsContent>
+              <TabsContent value="hisse">
+                <AssetTable assets={(assets || []).filter(a => a.type === "hisse")} />
+              </TabsContent>
+              <TabsContent value="kripto">
+                <AssetTable assets={(assets || []).filter(a => a.type === "kripto")} />
+              </TabsContent>
+              <TabsContent value="etf">
+                <AssetTable assets={(assets || []).filter(a => a.type === "etf")} />
+              </TabsContent>
+              <TabsContent value="madeni_para">
+                <AssetTable assets={(assets || []).filter(a => a.type === "madeni_para")} />
+              </TabsContent>
+            </Tabs>
           )}
         </CardContent>
       </Card>

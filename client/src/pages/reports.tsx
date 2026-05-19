@@ -62,14 +62,14 @@ export default function Reports() {
               </div>
             ) : (
               <div className="space-y-4">
-                {["hisse", "etf", "kripto", "gayrimenkul"].map((type) => {
+                {["hisse", "etf", "kripto", "madeni_para"].map((type) => {
                   const total = getTotalByType(type);
                   const count = getAssetsByType(type).length;
                   const typeNames: Record<string, string> = {
                     hisse: "Hisse Senetleri",
                     etf: "ETF'ler",
                     kripto: "Kripto Paralar",
-                    gayrimenkul: "Gayrimenkul",
+                    madeni_para: "Madeni Para",
                   };
                   
                   return (
@@ -100,9 +100,9 @@ export default function Reports() {
               <TabsTrigger value="hisse" data-testid="tab-hisse">Hisse</TabsTrigger>
               <TabsTrigger value="etf" data-testid="tab-etf">ETF</TabsTrigger>
               <TabsTrigger value="kripto" data-testid="tab-kripto">Kripto</TabsTrigger>
-              <TabsTrigger value="gayrimenkul" data-testid="tab-gayrimenkul">Gayrimenkul</TabsTrigger>
+              <TabsTrigger value="madeni_para" data-testid="tab-madeni-para">Madeni Para</TabsTrigger>
             </TabsList>
-            {["hisse", "etf", "kripto", "gayrimenkul"].map((type) => (
+            {["hisse", "etf", "kripto", "madeni_para"].map((type) => (
               <TabsContent key={type} value={type} className="mt-4">
                 {assetsLoading ? (
                   <div className="space-y-3">

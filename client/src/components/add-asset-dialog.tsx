@@ -150,7 +150,7 @@ export function AddAssetDialog({ open, onOpenChange }: AddAssetDialogProps) {
                           <SelectItem value="hisse">Hisse Senedi</SelectItem>
                           <SelectItem value="etf">ETF</SelectItem>
                           <SelectItem value="kripto">Kripto Para</SelectItem>
-                          <SelectItem value="gayrimenkul">Gayrimenkul</SelectItem>
+                          <SelectItem value="madeni_para">Madeni Para</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />

@@ -34,6 +34,7 @@ export interface IStorage {
   getTransaction(id: string): Promise<Transaction | undefined>;
   getTransactionsByAsset(assetId: string): Promise<Transaction[]>;
   createTransaction(transaction: InsertTransaction): Promise<Transaction>;
+  updateTransaction(id: string, transaction: Partial<InsertTransaction>): Promise<Transaction | undefined>;
   deleteTransaction(id: string): Promise<boolean>;
   
   // Portfolio calculations
@@ -147,6 +148,15 @@ export class DatabaseStorage implements IStorage {
     return transaction;
   }
 
+  async updateTransaction(id: string, updateData: Partial<InsertTransaction>): Promise<Transaction | undefined> {
+    const [transaction] = await db
+      .update(transactions)
+      .set(updateData)
+      .where(eq(transactions.id, id))
+      .returning();
+    return transaction || undefined;
+  }
+
   async deleteTransaction(id: string): Promise<boolean> {
     const result = await db.delete(transactions).where(eq(transactions.id, id));
     return result.rowCount !== null && result.rowCount > 0;
@@ -223,14 +233,14 @@ export class DatabaseStorage implements IStorage {
       hisse: "Hisse Senetleri",
       etf: "ETF'ler",
       kripto: "Kripto Paralar",
-      gayrimenkul: "Gayrimenkul",
+      madeni_para: "Madeni Para",
     };
     
     const colors: Record<string, string> = {
       hisse: "hsl(var(--chart-1))",
       etf: "hsl(var(--chart-2))",
       kripto: "hsl(var(--chart-4))",
-      gayrimenkul: "hsl(var(--chart-5))",
+      madeni_para: "hsl(var(--chart-5))",
     };
     
     return Array.from(allocationMap.entries()).map(([type, data]) => ({
