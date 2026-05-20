@@ -223,14 +223,16 @@ export default function Dashboard() {
 
       <Card data-testid="card-assets-list">
         <CardHeader>
-          <CardTitle>Varlıklarım</CardTitle>
-          <div className="mt-4">
-            <Input
-              value={assetSearch}
-              onChange={(e) => setAssetSearch(e.target.value)}
-              placeholder="Varlık adı, sembol, piyasa veya tür ara..."
-              data-testid="input-asset-search"
-            />
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <CardTitle>Varlıklarım</CardTitle>
+            <div className="w-full lg:max-w-sm">
+              <Input
+                value={assetSearch}
+                onChange={(e) => setAssetSearch(e.target.value)}
+                placeholder="Varlık adı, sembol, piyasa veya tür ara..."
+                data-testid="input-asset-search"
+              />
+            </div>
           </div>
         </CardHeader>
         <CardContent>
