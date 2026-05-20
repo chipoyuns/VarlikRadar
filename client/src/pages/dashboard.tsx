@@ -223,17 +223,7 @@ export default function Dashboard() {
 
       <Card data-testid="card-assets-list">
         <CardHeader>
-          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-            <CardTitle>Varlıklarım</CardTitle>
-            <div className="w-full xl:max-w-sm">
-              <Input
-                value={assetSearch}
-                onChange={(e) => setAssetSearch(e.target.value)}
-                placeholder="Varlık adı, sembol, piyasa veya tür ara..."
-                data-testid="input-asset-search"
-              />
-            </div>
-          </div>
+          <CardTitle>Varlıklarım</CardTitle>
         </CardHeader>
         <CardContent>
           {assetsLoading ? (
