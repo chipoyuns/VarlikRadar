@@ -1,17 +1,41 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Plus } from "lucide-react";
 import { useState } from "react";
 import { AddTransactionDialog } from "@/components/add-transaction-dialog";
 import { TransactionTable } from "@/components/transaction-table";
-import type { Transaction } from "@shared/schema";
+import type { Asset, Transaction } from "@shared/schema";
 
 export default function Transactions() {
   const [isAddTransactionOpen, setIsAddTransactionOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
 
   const { data: transactions, isLoading, error } = useQuery<Transaction[]>({
     queryKey: ["/api/transactions"],
+  });
+
+  const { data: assets } = useQuery<Asset[]>({
+    queryKey: ["/api/assets"],
+  });
+
+  const filteredTransactions = (transactions || []).filter((transaction) => {
+    if (!searchTerm.trim()) return true;
+    const asset = assets?.find((item) => item.id === transaction.assetId);
+    const haystack = [
+      transaction.assetId,
+      asset?.name,
+      asset?.symbol,
+      asset?.market,
+      transaction.type,
+      transaction.notes,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+
+    return haystack.includes(searchTerm.toLowerCase());
   });
 
   return (
@@ -33,7 +57,16 @@ export default function Transactions() {
 
       <Card data-testid="card-transaction-history">
         <CardHeader>
-          <CardTitle>İşlem Geçmişi</CardTitle>
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <CardTitle>İşlem Geçmişi</CardTitle>
+            <Input
+              placeholder="GARAN, BTC, ETH ara..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="max-w-xs"
+              data-testid="input-transaction-search"
+            />
+          </div>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -47,7 +80,7 @@ export default function Transactions() {
               İşlemler yüklenirken bir hata oluştu
             </div>
           ) : (
-            <TransactionTable transactions={transactions || []} />
+            <TransactionTable transactions={filteredTransactions} assets={assets || []} />
           )}
         </CardContent>
       </Card>

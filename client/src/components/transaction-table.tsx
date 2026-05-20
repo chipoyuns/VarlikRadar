@@ -8,14 +8,15 @@ import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { Transaction } from "@shared/schema";
+import type { Asset, Transaction } from "@shared/schema";
 import { EditTransactionDialog } from "./edit-transaction-dialog";
 
 interface TransactionTableProps {
   transactions: Transaction[];
+  assets: Asset[];
 }
 
-export function TransactionTable({ transactions }: TransactionTableProps) {
+export function TransactionTable({ transactions, assets }: TransactionTableProps) {
   const { toast } = useToast();
   const [editTransaction, setEditTransaction] = useState<Transaction | null>(null);
 
@@ -52,6 +53,14 @@ export function TransactionTable({ transactions }: TransactionTableProps) {
     return `${symbols[currency] || ""}${amount.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
+  const getAssetLabel = (assetId: string) => {
+    const asset = assets.find((item) => item.id === assetId);
+    if (!asset) {
+      return assetId.slice(0, 8);
+    }
+    return `${asset.symbol} - ${asset.name}`;
+  };
+
   if (transactions.length === 0) {
     return (
       <div className="text-center py-12 text-muted-foreground" data-testid="empty-transactions">
@@ -68,7 +77,7 @@ export function TransactionTable({ transactions }: TransactionTableProps) {
           <TableHeader>
             <TableRow>
               <TableHead>Tarih</TableHead>
-              <TableHead>Varlık ID</TableHead>
+              <TableHead>Varlık</TableHead>
               <TableHead>Tür</TableHead>
               <TableHead className="text-right">Miktar</TableHead>
               <TableHead className="text-right">Fiyat</TableHead>
@@ -83,7 +92,7 @@ export function TransactionTable({ transactions }: TransactionTableProps) {
                 <TableCell>
                   {format(new Date(transaction.date), "d MMM yyyy", { locale: tr })}
                 </TableCell>
-                <TableCell className="font-mono text-xs">{transaction.assetId.slice(0, 8)}...</TableCell>
+                <TableCell className="text-sm">{getAssetLabel(transaction.assetId)}</TableCell>
                 <TableCell>
                   <Badge
                     variant={transaction.type === "alış" ? "default" : "secondary"}
