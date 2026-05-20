@@ -44,13 +44,9 @@ export default function Reports() {
     getAssetsByType(type).reduce((sum, a) => sum + (a.totalValueTRY || 0), 0);
 
   const chartData = (benchmark ?? []).map((b, i) => {
-    const perfValue = performance?.[i]?.value ?? 0;
-    const basePerf = performance?.[0]?.value ?? 0;
-    const portfolioReturn =
-      basePerf > 0 ? parseFloat((((perfValue - basePerf) / basePerf) * 100).toFixed(2)) : 0;
     return {
       month: b.month,
-      portfoy: portfolioReturn,
+      portfoy: performance?.[i]?.value ?? 0,
       bist100: b.bist100,
       altin: b.altin,
       btc: b.btc,
@@ -143,7 +139,7 @@ export default function Reports() {
                       if (active && payload && payload.length) {
                         const labelMap: Record<string, string> = {
                           portfoy: "Portföyüm",
-                          bist100: "BIST100",
+                          bist100: "XU100",
                           altin: "Altın",
                           btc: "Bitcoin",
                         };
@@ -168,7 +164,7 @@ export default function Reports() {
                     formatter={(value) => {
                       const labels: Record<string, string> = {
                         portfoy: "Portföyüm",
-                        bist100: "BIST100",
+                        bist100: "XU100",
                         altin: "Altın",
                         btc: "Bitcoin",
                       };
@@ -188,7 +184,7 @@ export default function Reports() {
                     type="monotone"
                     dataKey="bist100"
                     name="bist100"
-                    stroke="hsl(142, 71%, 45%)"
+                    stroke="hsl(142, 76%, 36%)"
                     strokeWidth={2}
                     dot={{ r: 3 }}
                     connectNulls
