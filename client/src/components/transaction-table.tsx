@@ -95,7 +95,7 @@ export function TransactionTable({ transactions, assets }: TransactionTableProps
                 <TableCell className="text-sm">{getAssetLabel(transaction.assetId)}</TableCell>
                 <TableCell>
                   <Badge
-                    variant={transaction.type === "alış" ? "default" : "secondary"}
+                    variant={transaction.type === "alış" ? "secondary" : "destructive"}
                     data-testid={`badge-${transaction.type}`}
                   >
                     {transaction.type}
