@@ -1,6 +1,7 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, TrendingUp, TrendingDown, RefreshCw } from "lucide-react";
 import { useState } from "react";
@@ -17,6 +18,7 @@ export default function Dashboard() {
   const [isAddAssetOpen, setIsAddAssetOpen] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<string | null>(null);
   const [perfPeriod, setPerfPeriod] = useState<string>("monthly");
+  const [assetSearch, setAssetSearch] = useState("");
   const { toast } = useToast();
   const { formatDisplayCurrency, displayCurrency, isLoadingRates } = useDisplayCurrency();
 
@@ -222,6 +224,14 @@ export default function Dashboard() {
       <Card data-testid="card-assets-list">
         <CardHeader>
           <CardTitle>Varlıklarım</CardTitle>
+          <div className="mt-4">
+            <Input
+              value={assetSearch}
+              onChange={(e) => setAssetSearch(e.target.value)}
+              placeholder="Varlık adı, sembol, piyasa veya tür ara..."
+              data-testid="input-asset-search"
+            />
+          </div>
         </CardHeader>
         <CardContent>
           {assetsLoading ? (
@@ -244,19 +254,19 @@ export default function Dashboard() {
                 <TabsTrigger value="madeni_para" data-testid="tab-madeni-para">Madeni Para</TabsTrigger>
               </TabsList>
               <TabsContent value="tumu">
-                <AssetTable assets={assets || []} />
+                <AssetTable assets={assets || []} searchTerm={assetSearch} />
               </TabsContent>
               <TabsContent value="hisse">
-                <AssetTable assets={(assets || []).filter(a => a.type === "hisse")} />
+                <AssetTable assets={(assets || []).filter(a => a.type === "hisse")} searchTerm={assetSearch} />
               </TabsContent>
               <TabsContent value="kripto">
-                <AssetTable assets={(assets || []).filter(a => a.type === "kripto")} />
+                <AssetTable assets={(assets || []).filter(a => a.type === "kripto")} searchTerm={assetSearch} />
               </TabsContent>
               <TabsContent value="etf">
-                <AssetTable assets={(assets || []).filter(a => a.type === "etf")} />
+                <AssetTable assets={(assets || []).filter(a => a.type === "etf")} searchTerm={assetSearch} />
               </TabsContent>
               <TabsContent value="madeni_para">
-                <AssetTable assets={(assets || []).filter(a => a.type === "madeni_para")} />
+                <AssetTable assets={(assets || []).filter(a => a.type === "madeni_para")} searchTerm={assetSearch} />
               </TabsContent>
             </Tabs>
           )}

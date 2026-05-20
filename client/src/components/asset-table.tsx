@@ -10,11 +10,19 @@ import { EditAssetDialog } from "./edit-asset-dialog";
 
 interface AssetTableProps {
   assets: AssetDetail[];
+  searchTerm?: string;
 }
 
-export function AssetTable({ assets }: AssetTableProps) {
+export function AssetTable({ assets, searchTerm = "" }: AssetTableProps) {
   const { toast } = useToast();
   const [editAsset, setEditAsset] = useState<AssetDetail | null>(null);
+  const filteredAssets = assets.filter((asset) => {
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) return true;
+    return [asset.name, asset.symbol, asset.market, asset.type, asset.currency].some((value) =>
+      value.toLowerCase().includes(term)
+    );
+  });
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -50,11 +58,13 @@ export function AssetTable({ assets }: AssetTableProps) {
     madeni_para: "Madeni Para",
   };
 
-  if (assets.length === 0) {
+  if (filteredAssets.length === 0) {
     return (
       <div className="text-center py-12 text-muted-foreground" data-testid="empty-assets">
-        <p>Henüz varlık eklenmemiş</p>
-        <p className="text-sm mt-1">Portföyünüze varlık eklemek için yukarıdaki butonu kullanın</p>
+        <p>{searchTerm ? "Aramaya uygun varlık bulunamadı" : "Henüz varlık eklenmemiş"}</p>
+        <p className="text-sm mt-1">
+          {searchTerm ? "Farklı bir arama terimi deneyin" : "Portföyünüze varlık eklemek için yukarıdaki butonu kullanın"}
+        </p>
       </div>
     );
   }
@@ -78,7 +88,7 @@ export function AssetTable({ assets }: AssetTableProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {assets.map((asset) => (
+            {filteredAssets.map((asset) => (
               <TableRow key={asset.id} data-testid={`asset-row-${asset.id}`}>
                 <TableCell className="font-medium">
                   <div>
