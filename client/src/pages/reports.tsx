@@ -175,16 +175,7 @@ export default function Reports() {
                     type="monotone"
                     dataKey="portfoy"
                     name="portfoy"
-                    stroke="hsl(var(--primary))"
-                    strokeWidth={2}
-                    dot={{ r: 3 }}
-                    connectNulls
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="bist100"
-                    name="bist100"
-                    stroke="hsl(142, 76%, 36%)"
+                    stroke="hsl(221, 83%, 53%)"
                     strokeWidth={2}
                     dot={{ r: 3 }}
                     connectNulls
@@ -196,6 +187,16 @@ export default function Reports() {
                     stroke="hsl(45, 93%, 47%)"
                     strokeWidth={2}
                     dot={{ r: 3 }}
+                    connectNulls
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="bist100"
+                    name="bist100"
+                    stroke="hsl(142, 76%, 36%)"
+                    strokeWidth={3}
+                    dot={{ r: 4, stroke: "hsl(142, 76%, 36%)", strokeWidth: 2, fill: "#fff" }}
+                    activeDot={{ r: 6 }}
                     connectNulls
                   />
                   <Line
