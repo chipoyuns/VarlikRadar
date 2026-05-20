@@ -255,9 +255,8 @@ export class DatabaseStorage implements IStorage {
   async getMonthlyPerformance(period: string = "monthly"): Promise<MonthlyPerformance[]> {
     const MONTHS = ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
     const now = new Date();
-    const transactions = await this.getTransactions();
-    const assets = await this.getAssets();
-    const rates = await fetchExchangeRates();
+    const incomes = await this.getIncomes();
+    const expenses = await this.getExpenses();
 
     // Build data point dates and labels
     const dataPoints: { date: Date; label: string }[] = [];
@@ -285,34 +284,14 @@ export class DatabaseStorage implements IStorage {
     }
 
     return dataPoints.map(({ date, label }) => {
-      const assetValuesAtDate = new Map<string, { quantity: number; averagePrice: number }>();
-      const relevant = transactions.filter((t) => new Date(t.date) <= date);
+      const totalIncome = incomes
+        .filter((income) => new Date(income.date) <= date)
+        .reduce((sum, income) => sum + (Number(income.amount) || 0), 0);
+      const totalExpense = expenses
+        .filter((expense) => new Date(expense.date) <= date)
+        .reduce((sum, expense) => sum + (Number(expense.amount) || 0), 0);
 
-      relevant.forEach((t) => {
-        const existing = assetValuesAtDate.get(t.assetId) || { quantity: 0, averagePrice: 0 };
-        const qty = Number(t.quantity) || 0;
-        const price = Number(t.price) || 0;
-        if (t.type === "alış") {
-          const newQty = existing.quantity + qty;
-          const newAvg = newQty > 0 ? (existing.quantity * existing.averagePrice + qty * price) / newQty : 0;
-          assetValuesAtDate.set(t.assetId, { quantity: newQty, averagePrice: newAvg });
-        } else if (t.type === "satış") {
-          assetValuesAtDate.set(t.assetId, {
-            quantity: Math.max(0, existing.quantity - qty),
-            averagePrice: existing.averagePrice,
-          });
-        }
-      });
-
-      let totalValue = 0;
-      assetValuesAtDate.forEach((value, assetId) => {
-        const asset = assets.find((a) => a.id === assetId);
-        if (asset && value.quantity > 0) {
-          totalValue += toTRY(value.quantity * (Number(asset.currentPrice) || 0), asset.currency, rates);
-        }
-      });
-
-      return { month: label, value: totalValue };
+      return { month: label, value: totalIncome - totalExpense };
     });
   }
 
