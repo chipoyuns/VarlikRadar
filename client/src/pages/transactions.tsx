@@ -2,10 +2,11 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus } from "lucide-react";
+import { Plus, FileText, FileSpreadsheet } from "lucide-react";
 import { useState } from "react";
 import { AddTransactionDialog } from "@/components/add-transaction-dialog";
 import { TransactionTable } from "@/components/transaction-table";
+import { exportTransactionsToPDF, exportTransactionsToExcel } from "@/lib/export-utils";
 import type { Asset, Transaction } from "@shared/schema";
 
 export default function Transactions() {
@@ -82,12 +83,36 @@ export default function Transactions() {
           ) : (
             <TransactionTable transactions={filteredTransactions} assets={assets || []} />
           )}
+
+          {!isLoading && !error && (transactions || []).length > 0 && (
+            <div className="flex items-center justify-end gap-2 mt-4 pt-4 border-t border-border">
+              <span className="text-xs text-muted-foreground mr-2">Dışa Aktar:</span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => exportTransactionsToPDF(filteredTransactions, assets || [])}
+                data-testid="button-transactions-export-pdf"
+              >
+                <FileText className="h-4 w-4 mr-1.5" />
+                PDF
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => exportTransactionsToExcel(filteredTransactions, assets || [])}
+                data-testid="button-transactions-export-excel"
+              >
+                <FileSpreadsheet className="h-4 w-4 mr-1.5" />
+                Excel
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      <AddTransactionDialog 
-        open={isAddTransactionOpen} 
-        onOpenChange={setIsAddTransactionOpen} 
+      <AddTransactionDialog
+        open={isAddTransactionOpen}
+        onOpenChange={setIsAddTransactionOpen}
       />
     </div>
   );

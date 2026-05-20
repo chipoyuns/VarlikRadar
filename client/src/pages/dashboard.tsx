@@ -5,10 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Plus, TrendingUp, TrendingDown, RefreshCw, Eye, EyeOff,
-  Shield, Zap, Bitcoin, BarChart3, ArrowUpRight, ArrowDownRight,
-  Flame, AlertTriangle, CheckCircle, Activity
+  Shield, Bitcoin, BarChart3, ArrowUpRight, ArrowDownRight,
+  Flame, AlertTriangle, CheckCircle, Activity, FileText, FileSpreadsheet
 } from "lucide-react";
 import { useState, useMemo, useEffect, useRef } from "react";
+import { exportAssetsToPDF, exportAssetsToExcel } from "@/lib/export-utils";
 import { AddAssetDialog } from "@/components/add-asset-dialog";
 import { AssetTable } from "@/components/asset-table";
 import { AssetAllocationChart } from "@/components/asset-allocation-chart";
@@ -636,6 +637,30 @@ export default function Dashboard() {
                 <AssetTable assets={(assets || []).filter(a => a.type === "madeni_para")} searchTerm={assetSearch} />
               </TabsContent>
             </Tabs>
+          )}
+
+          {!assetsLoading && !assetsError && (assets || []).length > 0 && (
+            <div className="flex items-center justify-end gap-2 mt-4 pt-4 border-t border-border">
+              <span className="text-xs text-muted-foreground mr-2">Dışa Aktar:</span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => exportAssetsToPDF(assets || [])}
+                data-testid="button-assets-export-pdf"
+              >
+                <FileText className="h-4 w-4 mr-1.5" />
+                PDF
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => exportAssetsToExcel(assets || [])}
+                data-testid="button-assets-export-excel"
+              >
+                <FileSpreadsheet className="h-4 w-4 mr-1.5" />
+                Excel
+              </Button>
+            </div>
           )}
         </CardContent>
       </Card>

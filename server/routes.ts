@@ -309,6 +309,101 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Backup export endpoint
+  app.get("/api/backup/export", async (req, res) => {
+    try {
+      const [assets, transactions, incomes, expenses] = await Promise.all([
+        storage.getAssets(),
+        storage.getTransactions(),
+        storage.getIncomes(),
+        storage.getExpenses(),
+      ]);
+      const backup = {
+        version: "1.0",
+        exportedAt: new Date().toISOString(),
+        platform: "Portföy Takip",
+        data: { assets, transactions, incomes, expenses },
+      };
+      res.setHeader("Content-Disposition", `attachment; filename="portfoy_yedek_${new Date().toISOString().slice(0, 10)}.json"`);
+      res.setHeader("Content-Type", "application/json");
+      res.json(backup);
+    } catch (error) {
+      res.status(500).json({ error: "Yedek alınamadı" });
+    }
+  });
+
+  // Backup import endpoint
+  app.post("/api/backup/import", async (req, res) => {
+    try {
+      const { assets: assetsData, transactions: txData, incomes: incomesData, expenses: expensesData } = req.body;
+      let imported = { assets: 0, transactions: 0, incomes: 0, expenses: 0 };
+
+      if (Array.isArray(assetsData)) {
+        for (const a of assetsData) {
+          try {
+            const validated = insertAssetSchema.parse({
+              type: a.type, name: a.name, symbol: a.symbol, market: a.market,
+              quantity: a.quantity, averagePrice: a.averagePrice,
+              currentPrice: a.currentPrice, currency: a.currency,
+            });
+            await storage.createAsset(validated);
+            imported.assets++;
+          } catch {}
+        }
+      }
+
+      if (Array.isArray(txData)) {
+        for (const t of txData) {
+          try {
+            const validated = insertTransactionSchema.parse({
+              assetId: t.assetId, type: t.type, quantity: t.quantity,
+              price: t.price, totalAmount: t.totalAmount,
+              currency: t.currency, notes: t.notes, date: t.date,
+            });
+            await storage.createTransaction(validated);
+            imported.transactions++;
+          } catch {}
+        }
+      }
+
+      if (Array.isArray(incomesData)) {
+        for (const i of incomesData) {
+          try {
+            const validated = insertIncomeSchema.parse({
+              category: i.category, description: i.description,
+              amount: i.amount, currency: i.currency,
+              date: i.date, isRecurring: i.isRecurring || 0,
+            });
+            await storage.createIncome(validated);
+            imported.incomes++;
+          } catch {}
+        }
+      }
+
+      if (Array.isArray(expensesData)) {
+        for (const e of expensesData) {
+          try {
+            const validated = insertExpenseSchema.parse({
+              category: e.category, description: e.description,
+              amount: e.amount, currency: e.currency,
+              date: e.date, isRecurring: e.isRecurring || 0,
+            });
+            await storage.createExpense(validated);
+            imported.expenses++;
+          } catch {}
+        }
+      }
+
+      res.json({
+        message: `İçe aktarma tamamlandı: ${imported.assets} varlık, ${imported.transactions} işlem, ${imported.incomes} gelir, ${imported.expenses} gider`,
+        imported,
+      });
+    } catch (error) {
+      console.error("Backup import error:", error);
+      res.status(500).json({ error: "İçe aktarma sırasında hata oluştu" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
