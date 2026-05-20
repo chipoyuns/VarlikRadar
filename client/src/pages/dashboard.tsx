@@ -223,9 +223,9 @@ export default function Dashboard() {
 
       <Card data-testid="card-assets-list">
         <CardHeader>
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
             <CardTitle>Varlıklarım</CardTitle>
-            <div className="w-full lg:max-w-sm">
+            <div className="w-full xl:max-w-sm">
               <Input
                 value={assetSearch}
                 onChange={(e) => setAssetSearch(e.target.value)}
@@ -248,12 +248,20 @@ export default function Dashboard() {
             </div>
           ) : (
             <Tabs defaultValue="tumu" data-testid="tabs-assets">
-              <TabsList className="mb-4">
+              <TabsList className="mb-4 flex w-full flex-wrap justify-start gap-1">
                 <TabsTrigger value="tumu" data-testid="tab-tumu">Tümü</TabsTrigger>
                 <TabsTrigger value="hisse" data-testid="tab-hisse">Hisse Senedi</TabsTrigger>
                 <TabsTrigger value="kripto" data-testid="tab-kripto">Kripto</TabsTrigger>
                 <TabsTrigger value="etf" data-testid="tab-etf">ETF</TabsTrigger>
                 <TabsTrigger value="madeni_para" data-testid="tab-madeni-para">Madeni Para</TabsTrigger>
+                <div className="ml-auto w-full sm:w-[320px]">
+                  <Input
+                    value={assetSearch}
+                    onChange={(e) => setAssetSearch(e.target.value)}
+                    placeholder="Varlık adı, sembol, piyasa veya tür ara..."
+                    data-testid="input-asset-search"
+                  />
+                </div>
               </TabsList>
               <TabsContent value="tumu">
                 <AssetTable assets={assets || []} searchTerm={assetSearch} />
