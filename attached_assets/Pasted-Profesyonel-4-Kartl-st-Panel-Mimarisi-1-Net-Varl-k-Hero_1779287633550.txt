@@ -1,0 +1,101 @@
+Profesyonel 4 Kartlı Üst Panel Mimarisi
+
+1. Net Varlık (Hero Kart)
+
+En büyük kart bu olmalı.
+
+İçerik:
+Güncel net değer
+Bugünkü değişim
+Toplam ROI
+Son ATH farkı
+Örnek:
+₺3.917.521
+
+▲ +₺35.420 bugün
+Toplam getiri: +11.9%
+ATH'den: -2.1%
+
+
+2.  Günlük PnL Kartı "Sadece Hisse senedi,Etf, Emti, Döviz ile Yapılan Alımlardaki Pnl Göstersin"
+
+(PnL = Profit & Loss)
+
+Bu kart trader psikolojisinin merkezidir.
+
+İçerik:
+Günlük kar zarar
+Açık pozisyon etkisi
+En çok kazandıran varlık
+Örnek:
++₺35.420  "Kar durumunda komple yeşil, zarar durumunda komple kırmızı font"
+
+▲ %0.91 bugün
+En iyi performans:
+GARAN +4.2%
+
+
+
+3. Kripto Günlük PnL Kartı "Sadece Kripto ile Yapılan Alımlardaki Pnl Göstersin
+
+(PnL = Profit & Loss)
+
+Bu kart trader psikolojisinin merkezidir.
+
+İçerik:
+Günlük kar zarar
+Açık pozisyon etkisi
+En çok kazandıran varlık
+Örnek:
++₺35.420  "Kar durumunda komple yeşil, zarar durumunda komple kırmızı font"
+
+▲ %0.91 bugün
+En iyi performans:
+BTC +4.2%
+
+4. Risk Seviyesi Kartı
+
+Çok profesyonel his verir.
+
+Çoğu uygulamada yoktur.
+
+İçerik:
+Portföy volatilitesi
+Risk skoru
+Kaldıraç durumu
+Varlık dağılım konsantrasyonu
+Örnek:
+Orta Risk
+
+Risk Skoru: 6.2/10
+Kripto ağırlığı: %41
+Bonus:
+
+Renk sistemi:
+
+Yeşil = düşük
+Sarı = orta
+Kırmızı = agresif
+
+
+
+
+
+Yukardaki 4 bölümün altIna  akan yazı gibi  Akıllı Insight Sistemi yorumları bilinçli ve portföyün ve kasanın durumuna göre güncellediğimizde düzeltsin
+
+AI tarzı mini yorumlar:
+
+Örnek:
+• Portföy son 30 günde BIST100'ü geçti   • Kripto risk oranı yükseldi    • Nakit seviyesi fırsat alımı için yeterli    • En büyük düşüş ASELSAN kaynaklı 
+
+UI/UX Professional Touches Tasarımda bunları kullanabilirsin
+
+Add the following:
+Subtle glassmorphism
+Gradient border
+Hover glow
+Smooth counter animation
+Microinteractions
+Sparkline mini chart
+
+Göz İkonu (Gizlilik Modu): "Portföyüm" başlığının yanına bir "Göz İkonu" ($\small \boldsymbol{\theta}$) koyabilirsin. Kullanıcı buna tıkladığında tüm büyük rakamlar ***** ₺ haline gelir, sadece yüzdeler görünür. 
