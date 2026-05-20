@@ -2,7 +2,6 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Plus, TrendingUp, TrendingDown, RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { AddAssetDialog } from "@/components/add-asset-dialog";
@@ -12,7 +11,7 @@ import { MonthlyPerformanceChart } from "@/components/monthly-performance-chart"
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useDisplayCurrency } from "@/lib/currency-context";
-import type { PortfolioSummary, AssetDetail, AssetAllocation, MonthlyPerformance, Transaction } from "@shared/schema";
+import type { PortfolioSummary, AssetDetail, AssetAllocation, MonthlyPerformance } from "@shared/schema";
 
 export default function Dashboard() {
   const [isAddAssetOpen, setIsAddAssetOpen] = useState(false);
@@ -63,10 +62,6 @@ export default function Dashboard() {
     queryKey: [`/api/portfolio/performance?period=${perfPeriod}`],
   });
 
-  const { data: transactions } = useQuery<Transaction[]>({
-    queryKey: ["/api/transactions"],
-  });
-
   const formatCurrency = (amount: number) => {
     return formatDisplayCurrency(amount);
   };
@@ -74,18 +69,6 @@ export default function Dashboard() {
   const formatPercent = (percent: number) => {
     return `${percent >= 0 ? "+" : ""}${percent.toFixed(2)}%`;
   };
-
-  const getAssetTransactions = (assetId: string) =>
-    (transactions || [])
-      .filter((transaction) => transaction.assetId === assetId)
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-  const formatDate = (date: string | Date) =>
-    new Date(date).toLocaleDateString("tr-TR", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    });
 
   return (
     <div className="space-y-6">
@@ -252,56 +235,30 @@ export default function Dashboard() {
               Varlıklar yüklenirken bir hata oluştu
             </div>
           ) : (
-            <Accordion type="single" collapsible className="space-y-2" data-testid="accordion-assets">
-              {(assets || []).map((asset) => {
-                const assetTransactions = getAssetTransactions(asset.id);
-                return (
-                  <AccordionItem key={asset.id} value={asset.id} className="rounded-md border px-4">
-                    <AccordionTrigger className="py-4 hover:no-underline" data-testid={`trigger-asset-${asset.id}`}>
-                      <div className="flex w-full items-center justify-between gap-4 pr-2">
-                        <div className="text-left">
-                          <div className="font-medium">{asset.name}</div>
-                          <div className="text-sm text-muted-foreground">
-                            {asset.symbol} • {asset.market} • {asset.currency}
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="font-semibold">{formatCurrency(asset.totalValue || 0)}</div>
-                          <div className={`${(asset.change || 0) >= 0 ? "text-success" : "text-destructive"} text-sm`}>
-                            {(asset.change || 0) >= 0 ? "+" : ""}
-                            {(asset.change || 0).toFixed(2)}%
-                          </div>
-                        </div>
-                      </div>
-                    </AccordionTrigger>
-                    <AccordionContent>
-                      <div className="space-y-2">
-                        <div className="text-xs text-muted-foreground">
-                          Miktar: {Number(asset.quantity).toLocaleString("tr-TR", { maximumFractionDigits: 8 })} • Ort. Fiyat: {formatCurrency(Number(asset.averagePrice))}
-                        </div>
-                        {assetTransactions.length === 0 ? (
-                          <div className="text-sm text-muted-foreground">Bu varlık için işlem bulunmuyor</div>
-                        ) : (
-                          assetTransactions.map((transaction) => (
-                            <div key={transaction.id} className="flex items-center justify-between rounded-md border bg-muted/30 px-3 py-2 text-sm">
-                              <div>
-                                <div className="font-medium">{formatDate(transaction.date)}</div>
-                                <div className="text-xs text-muted-foreground">
-                                  {transaction.type} • {Number(transaction.quantity).toLocaleString("tr-TR", { maximumFractionDigits: 8 })} adet
-                                </div>
-                              </div>
-                              <div className={transaction.type === "alış" ? "text-success" : "text-destructive"}>
-                                {transaction.type === "alış" ? "+" : "-"}{formatCurrency(Number(transaction.totalAmount) || 0)}
-                              </div>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-                );
-              })}
-            </Accordion>
+            <Tabs defaultValue="tumu" data-testid="tabs-assets">
+              <TabsList className="mb-4">
+                <TabsTrigger value="tumu" data-testid="tab-tumu">Tümü</TabsTrigger>
+                <TabsTrigger value="hisse" data-testid="tab-hisse">Hisse Senedi</TabsTrigger>
+                <TabsTrigger value="kripto" data-testid="tab-kripto">Kripto</TabsTrigger>
+                <TabsTrigger value="etf" data-testid="tab-etf">ETF</TabsTrigger>
+                <TabsTrigger value="madeni_para" data-testid="tab-madeni-para">Madeni Para</TabsTrigger>
+              </TabsList>
+              <TabsContent value="tumu">
+                <AssetTable assets={assets || []} />
+              </TabsContent>
+              <TabsContent value="hisse">
+                <AssetTable assets={(assets || []).filter(a => a.type === "hisse")} />
+              </TabsContent>
+              <TabsContent value="kripto">
+                <AssetTable assets={(assets || []).filter(a => a.type === "kripto")} />
+              </TabsContent>
+              <TabsContent value="etf">
+                <AssetTable assets={(assets || []).filter(a => a.type === "etf")} />
+              </TabsContent>
+              <TabsContent value="madeni_para">
+                <AssetTable assets={(assets || []).filter(a => a.type === "madeni_para")} />
+              </TabsContent>
+            </Tabs>
           )}
         </CardContent>
       </Card>
