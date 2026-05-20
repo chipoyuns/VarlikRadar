@@ -17,7 +17,7 @@ const TYPE_NAMES: Record<string, string> = {
   hisse: "Hisse Senetleri",
   etf: "ETF'ler",
   kripto: "Kripto Paralar",
-  madeni_para: "Madeni Para",
+  madeni_para: "Emtia",
 };
 
 export default function Reports() {
@@ -228,7 +228,7 @@ export default function Reports() {
               <TabsTrigger value="hisse" data-testid="tab-hisse">Hisse</TabsTrigger>
               <TabsTrigger value="etf" data-testid="tab-etf">ETF</TabsTrigger>
               <TabsTrigger value="kripto" data-testid="tab-kripto">Kripto</TabsTrigger>
-              <TabsTrigger value="madeni_para" data-testid="tab-madeni-para">Madeni Para</TabsTrigger>
+              <TabsTrigger value="madeni_para" data-testid="tab-madeni-para">Emtia</TabsTrigger>
             </TabsList>
             {["hisse", "etf", "kripto", "madeni_para"].map((type) => (
               <TabsContent key={type} value={type} className="mt-4">
