@@ -104,7 +104,7 @@ export async function updateAllAssetPrices(): Promise<PriceUpdateResult[]> {
         newPrice = await fetchBinancePrice(asset.symbol);
       } else if (asset.type === "hisse" || asset.type === "etf") {
         newPrice = await fetchYahooPrice(asset.symbol, asset.market);
-      } else if (asset.type === "gayrimenkul") {
+      } else if (asset.type === "madeni_para") {
         newPrice = oldPrice;
       }
       

@@ -16,6 +16,7 @@ import type { PortfolioSummary, AssetDetail, AssetAllocation, MonthlyPerformance
 export default function Dashboard() {
   const [isAddAssetOpen, setIsAddAssetOpen] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<string | null>(null);
+  const [perfPeriod, setPerfPeriod] = useState<string>("monthly");
   const { toast } = useToast();
   const { formatDisplayCurrency, displayCurrency, isLoadingRates } = useDisplayCurrency();
 
@@ -58,7 +59,7 @@ export default function Dashboard() {
   });
 
   const { data: performance, isLoading: performanceLoading, error: performanceError } = useQuery<MonthlyPerformance[]>({
-    queryKey: ["/api/portfolio/performance"],
+    queryKey: [`/api/portfolio/performance?period=${perfPeriod}`],
   });
 
   const formatCurrency = (amount: number) => {
@@ -194,10 +195,17 @@ export default function Dashboard() {
         </Card>
 
         <Card data-testid="card-monthly-performance">
-          <CardHeader>
-            <CardTitle>Aylık Performans</CardTitle>
+          <CardHeader className="pb-2">
+            <CardTitle>Portföy Performansı</CardTitle>
           </CardHeader>
           <CardContent>
+            <Tabs value={perfPeriod} onValueChange={setPerfPeriod} className="mb-4">
+              <TabsList>
+                <TabsTrigger value="daily" data-testid="tab-perf-daily">Günlük</TabsTrigger>
+                <TabsTrigger value="weekly" data-testid="tab-perf-weekly">Haftalık</TabsTrigger>
+                <TabsTrigger value="monthly" data-testid="tab-perf-monthly">Aylık</TabsTrigger>
+              </TabsList>
+            </Tabs>
             {performanceLoading ? (
               <div className="h-[300px] w-full bg-muted animate-pulse rounded" />
             ) : performanceError ? (

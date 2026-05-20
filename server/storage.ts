@@ -40,7 +40,7 @@ export interface IStorage {
   // Portfolio calculations
   getPortfolioSummary(): Promise<PortfolioSummary>;
   getAssetAllocation(): Promise<AssetAllocation[]>;
-  getMonthlyPerformance(): Promise<MonthlyPerformance[]>;
+  getMonthlyPerformance(period?: string): Promise<MonthlyPerformance[]>;
   getAssetDetails(): Promise<AssetDetail[]>;
   
   // Income operations
@@ -252,70 +252,68 @@ export class DatabaseStorage implements IStorage {
     }));
   }
 
-  async getMonthlyPerformance(): Promise<MonthlyPerformance[]> {
-    const months = ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
-    const currentDate = new Date();
-    const currentMonth = currentDate.getMonth();
-    
-    // Calculate portfolio value for each of the last 12 months based on transactions
-    const performance: MonthlyPerformance[] = [];
+  async getMonthlyPerformance(period: string = "monthly"): Promise<MonthlyPerformance[]> {
+    const MONTHS = ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
+    const now = new Date();
     const transactions = await this.getTransactions();
-    
-    for (let i = 11; i >= 0; i--) {
-      const targetDate = new Date(currentDate);
-      targetDate.setMonth(currentDate.getMonth() - i);
-      targetDate.setDate(1); // First day of the month
-      const monthIndex = targetDate.getMonth();
-      
-      // Calculate portfolio value at that point in time
+    const assets = await this.getAssets();
+    const rates = await fetchExchangeRates();
+
+    // Build data point dates and labels
+    const dataPoints: { date: Date; label: string }[] = [];
+
+    if (period === "daily") {
+      for (let i = 29; i >= 0; i--) {
+        const d = new Date(now);
+        d.setDate(d.getDate() - i);
+        d.setHours(23, 59, 59, 999);
+        dataPoints.push({ date: d, label: `${d.getDate()}.${d.getMonth() + 1}` });
+      }
+    } else if (period === "weekly") {
+      for (let i = 11; i >= 0; i--) {
+        const d = new Date(now);
+        d.setDate(d.getDate() - i * 7);
+        d.setHours(23, 59, 59, 999);
+        dataPoints.push({ date: d, label: `H${12 - i}` });
+      }
+    } else {
+      // Monthly (default)
+      for (let i = 11; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i + 1, 0, 23, 59, 59);
+        dataPoints.push({ date: d, label: MONTHS[d.getMonth()] });
+      }
+    }
+
+    return dataPoints.map(({ date, label }) => {
       const assetValuesAtDate = new Map<string, { quantity: number; averagePrice: number }>();
-      
-      // Process transactions up to this date
-      const relevantTransactions = transactions.filter(t => 
-        new Date(t.date) <= targetDate
-      );
-      
-      relevantTransactions.forEach(transaction => {
-        const existing = assetValuesAtDate.get(transaction.assetId) || { quantity: 0, averagePrice: 0 };
-        const transactionQuantity = Number(transaction.quantity) || 0;
-        const transactionPrice = Number(transaction.price) || 0;
-        
-        if (transaction.type === "alış") {
-          const currentValue = existing.quantity * existing.averagePrice;
-          const newValue = transactionQuantity * transactionPrice;
-          const newQuantity = existing.quantity + transactionQuantity;
-          const newAveragePrice = newQuantity > 0 ? (currentValue + newValue) / newQuantity : 0;
-          
-          assetValuesAtDate.set(transaction.assetId, {
-            quantity: newQuantity,
-            averagePrice: newAveragePrice,
-          });
-        } else if (transaction.type === "satış") {
-          assetValuesAtDate.set(transaction.assetId, {
-            quantity: Math.max(0, existing.quantity - transactionQuantity),
+      const relevant = transactions.filter((t) => new Date(t.date) <= date);
+
+      relevant.forEach((t) => {
+        const existing = assetValuesAtDate.get(t.assetId) || { quantity: 0, averagePrice: 0 };
+        const qty = Number(t.quantity) || 0;
+        const price = Number(t.price) || 0;
+        if (t.type === "alış") {
+          const newQty = existing.quantity + qty;
+          const newAvg = newQty > 0 ? (existing.quantity * existing.averagePrice + qty * price) / newQty : 0;
+          assetValuesAtDate.set(t.assetId, { quantity: newQty, averagePrice: newAvg });
+        } else if (t.type === "satış") {
+          assetValuesAtDate.set(t.assetId, {
+            quantity: Math.max(0, existing.quantity - qty),
             averagePrice: existing.averagePrice,
           });
         }
       });
-      
-      // Calculate total value using current prices (normalize to TRY)
+
       let totalValue = 0;
-      const assets = await this.getAssets();
-      const rates = await fetchExchangeRates();
       assetValuesAtDate.forEach((value, assetId) => {
-        const asset = assets.find(a => a.id === assetId);
+        const asset = assets.find((a) => a.id === assetId);
         if (asset && value.quantity > 0) {
           totalValue += toTRY(value.quantity * (Number(asset.currentPrice) || 0), asset.currency, rates);
         }
       });
-      
-      performance.push({
-        month: months[monthIndex],
-        value: totalValue,
-      });
-    }
-    
-    return performance;
+
+      return { month: label, value: totalValue };
+    });
   }
 
   async getAssetDetails(): Promise<AssetDetail[]> {

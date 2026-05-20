@@ -149,10 +149,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/portfolio/performance", async (req, res) => {
     try {
-      const performance = await storage.getMonthlyPerformance();
+      const period = (req.query.period as string) || "monthly";
+      const performance = await storage.getMonthlyPerformance(period);
       res.json(performance);
     } catch (error) {
-      res.status(500).json({ error: "Failed to fetch monthly performance" });
+      res.status(500).json({ error: "Failed to fetch performance" });
+    }
+  });
+
+  app.get("/api/benchmark", async (req, res) => {
+    try {
+      const { fetchBenchmarkData } = await import("./services/benchmarkService");
+      const data = await fetchBenchmarkData();
+      res.json(data);
+    } catch (error) {
+      console.error("Benchmark error:", error);
+      res.status(500).json({ error: "Failed to fetch benchmark data" });
     }
   });
 

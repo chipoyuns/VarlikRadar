@@ -1,4 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,14 +7,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, TrendingUp, TrendingDown, Wallet, Trash2 } from "lucide-react";
+import { Plus, TrendingUp, TrendingDown, Wallet, Trash2, Pencil, Check, PiggyBank, BarChart2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
-import type { Income, Expense, BudgetSummary } from "@shared/schema";
+import type { Income, Expense, BudgetSummary, PortfolioSummary } from "@shared/schema";
 import { incomeCategories, expenseCategories, insertIncomeSchema, insertExpenseSchema } from "@shared/schema";
 
 const INCOME_COLORS = [
@@ -72,9 +73,27 @@ const expenseFormSchema = insertExpenseSchema.extend({
 
 export default function Budget() {
   const { toast } = useToast();
+  const [kasaValue, setKasaValue] = useState<number>(() =>
+    parseFloat(localStorage.getItem("toplam_kasa") || "0")
+  );
+  const [isEditingKasa, setIsEditingKasa] = useState(false);
+  const [kasaInput, setKasaInput] = useState<string>("");
+
+  const saveKasa = () => {
+    const parsed = parseFloat(kasaInput.replace(",", "."));
+    if (!isNaN(parsed) && parsed >= 0) {
+      setKasaValue(parsed);
+      localStorage.setItem("toplam_kasa", parsed.toString());
+    }
+    setIsEditingKasa(false);
+  };
 
   const { data: summary, isLoading: summaryLoading } = useQuery<BudgetSummary>({
     queryKey: ["/api/budget/summary"],
+  });
+
+  const { data: portfolioSummary } = useQuery<PortfolioSummary>({
+    queryKey: ["/api/portfolio/summary"],
   });
 
   const { data: incomes, isLoading: incomesLoading } = useQuery<Income[]>({
@@ -309,7 +328,49 @@ export default function Budget() {
         </p>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-3">
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-5">
+        <Card data-testid="card-total-kasa">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
+            <CardTitle className="text-sm font-medium">Toplam Kasa</CardTitle>
+            <PiggyBank className="h-4 w-4 text-success" />
+          </CardHeader>
+          <CardContent>
+            {isEditingKasa ? (
+              <div className="flex items-center gap-1 mt-1">
+                <Input
+                  autoFocus
+                  className="h-8 text-sm"
+                  value={kasaInput}
+                  onChange={(e) => setKasaInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") saveKasa();
+                    if (e.key === "Escape") setIsEditingKasa(false);
+                  }}
+                  data-testid="input-kasa"
+                />
+                <Button size="icon" variant="ghost" className="h-8 w-8" onClick={saveKasa} data-testid="button-save-kasa">
+                  <Check className="h-4 w-4 text-success" />
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-end justify-between gap-2">
+                <div className="text-xl font-semibold text-success" data-testid="text-total-kasa">
+                  {formatCurrency(kasaValue)}
+                </div>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-6 w-6 mb-0.5"
+                  onClick={() => { setKasaInput(kasaValue.toString()); setIsEditingKasa(true); }}
+                  data-testid="button-edit-kasa"
+                >
+                  <Pencil className="h-3 w-3 text-muted-foreground" />
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         <Card data-testid="card-total-income">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
             <CardTitle className="text-sm font-medium">Toplam Gelir</CardTitle>
@@ -319,7 +380,7 @@ export default function Budget() {
             {summaryLoading ? (
               <div className="h-8 w-32 bg-muted animate-pulse rounded" />
             ) : (
-              <div className="text-2xl font-semibold text-success" data-testid="text-total-income">
+              <div className="text-xl font-semibold text-success" data-testid="text-total-income">
                 {formatCurrency(summary?.totalIncome || 0)}
               </div>
             )}
@@ -335,29 +396,56 @@ export default function Budget() {
             {summaryLoading ? (
               <div className="h-8 w-32 bg-muted animate-pulse rounded" />
             ) : (
-              <div className="text-2xl font-semibold text-destructive" data-testid="text-total-expense">
+              <div className="text-xl font-semibold text-destructive" data-testid="text-total-expense">
                 {formatCurrency(summary?.totalExpense || 0)}
               </div>
             )}
           </CardContent>
         </Card>
 
-        <Card data-testid="card-balance">
+        <Card data-testid="card-portfolio-pnl">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
-            <CardTitle className="text-sm font-medium">Bakiye</CardTitle>
+            <CardTitle className="text-sm font-medium">Portföy Kar/Zarar</CardTitle>
+            <BarChart2 className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            {!portfolioSummary ? (
+              <div className="h-8 w-32 bg-muted animate-pulse rounded" />
+            ) : (
+              <div
+                className={`text-xl font-semibold ${(portfolioSummary.monthlyChangeAmount || 0) >= 0 ? "text-success" : "text-destructive"}`}
+                data-testid="text-portfolio-pnl"
+              >
+                {(portfolioSummary.monthlyChangeAmount || 0) >= 0 ? "+" : ""}
+                {formatCurrency(portfolioSummary.monthlyChangeAmount || 0)}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card data-testid="card-total-balance">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
+            <CardTitle className="text-sm font-medium">Toplam Bakiye</CardTitle>
             <Wallet className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
             {summaryLoading ? (
               <div className="h-8 w-32 bg-muted animate-pulse rounded" />
-            ) : (
-              <div 
-                className={`text-2xl font-semibold ${(summary?.balance || 0) >= 0 ? "text-success" : "text-destructive"}`}
-                data-testid="text-balance"
-              >
-                {formatCurrency(summary?.balance || 0)}
-              </div>
-            )}
+            ) : (() => {
+              const totalBakiye =
+                kasaValue +
+                (summary?.totalIncome || 0) -
+                (summary?.totalExpense || 0) +
+                (portfolioSummary?.monthlyChangeAmount || 0);
+              return (
+                <div
+                  className={`text-xl font-semibold ${totalBakiye >= 0 ? "text-success" : "text-destructive"}`}
+                  data-testid="text-total-balance"
+                >
+                  {formatCurrency(totalBakiye)}
+                </div>
+              );
+            })()}
           </CardContent>
         </Card>
       </div>
