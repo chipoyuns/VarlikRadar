@@ -1,11 +1,20 @@
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, ReferenceLine, Legend
+} from "recharts";
 import type { MonthlyPerformance } from "@shared/schema";
 
 interface MonthlyPerformanceChartProps {
   data: MonthlyPerformance[];
+  referenceValue?: number;
+  referenceLabel?: string;
 }
 
-export function MonthlyPerformanceChart({ data }: MonthlyPerformanceChartProps) {
+export function MonthlyPerformanceChart({
+  data,
+  referenceValue,
+  referenceLabel,
+}: MonthlyPerformanceChartProps) {
   if (data.length === 0) {
     return (
       <div className="flex items-center justify-center h-[300px] text-muted-foreground">
@@ -14,53 +23,114 @@ export function MonthlyPerformanceChart({ data }: MonthlyPerformanceChartProps) 
     );
   }
 
+  const formatTRY = (v: number) =>
+    v.toLocaleString("tr-TR", { style: "currency", currency: "TRY", maximumFractionDigits: 0 });
+
+  const formatK = (v: number) => {
+    if (Math.abs(v) >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
+    if (Math.abs(v) >= 1_000) return `${(v / 1_000).toFixed(0)}K`;
+    return v.toFixed(0);
+  };
+
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
+      const val = payload[0]?.value ?? 0;
+      const val2 = payload[1]?.value;
       return (
-        <div className="bg-popover border border-popover-border rounded-md p-3 shadow-md">
-          <p className="font-medium">{payload[0].payload.month}</p>
-          <p className="text-sm text-primary">
-            {payload[0].value.toLocaleString("tr-TR", {
-              style: "currency",
-              currency: "TRY",
-            })}
+        <div className="bg-popover border border-popover-border rounded-md p-3 shadow-md space-y-1">
+          <p className="font-medium text-xs text-muted-foreground">{payload[0].payload.month}</p>
+          <p className="text-sm font-semibold" style={{ color: val >= 0 ? "hsl(158 84% 39%)" : "hsl(0 84% 60%)" }}>
+            Bütçe Bakiyesi: {formatTRY(val)}
           </p>
+          {val2 !== undefined && (
+            <p className="text-sm font-semibold text-primary">
+              Toplam Bakiye: {formatTRY(val2)}
+            </p>
+          )}
         </div>
       );
     }
     return null;
   };
 
+  const hasTotal = data.some(d => (d as any).totalBakiye !== undefined);
+
   return (
     <ResponsiveContainer width="100%" height={300}>
-      <LineChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+      <AreaChart data={data} margin={{ top: 8, right: 10, left: 0, bottom: 5 }}>
+        <defs>
+          <linearGradient id="gradPos" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor="hsl(158 84% 39%)" stopOpacity={0.25} />
+            <stop offset="95%" stopColor="hsl(158 84% 39%)" stopOpacity={0.03} />
+          </linearGradient>
+          <linearGradient id="gradNeg" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor="hsl(0 84% 60%)" stopOpacity={0.22} />
+            <stop offset="95%" stopColor="hsl(0 84% 60%)" stopOpacity={0.03} />
+          </linearGradient>
+          <linearGradient id="gradTotal" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor="hsl(221 64% 45%)" stopOpacity={0.18} />
+            <stop offset="95%" stopColor="hsl(221 64% 45%)" stopOpacity={0.02} />
+          </linearGradient>
+        </defs>
+
         <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
         <XAxis
           dataKey="month"
           stroke="hsl(var(--muted-foreground))"
-          fontSize={12}
+          fontSize={11}
           tickLine={false}
           axisLine={false}
         />
         <YAxis
           stroke="hsl(var(--muted-foreground))"
-          fontSize={12}
+          fontSize={11}
           tickLine={false}
           axisLine={false}
-          tickFormatter={(value) =>
-            `${(value / 1000).toFixed(0)}K`
-          }
+          tickFormatter={formatK}
+          width={50}
         />
         <Tooltip content={<CustomTooltip />} />
-        <Line
+
+        {referenceValue !== undefined && (
+          <ReferenceLine
+            y={referenceValue}
+            stroke="hsl(221 64% 45%)"
+            strokeDasharray="6 3"
+            strokeWidth={1.5}
+            label={{
+              value: referenceLabel || `Bakiye: ${formatK(referenceValue)}`,
+              position: "insideTopRight",
+              fontSize: 10,
+              fill: "hsl(221 64% 45%)",
+            }}
+          />
+        )}
+
+        <ReferenceLine y={0} stroke="hsl(var(--border))" strokeWidth={1} />
+
+        {hasTotal && (
+          <Area
+            type="monotone"
+            dataKey="totalBakiye"
+            stroke="hsl(221 64% 45%)"
+            strokeWidth={2}
+            fill="url(#gradTotal)"
+            dot={false}
+            name="Toplam Bakiye"
+          />
+        )}
+
+        <Area
           type="monotone"
           dataKey="value"
-          stroke="hsl(var(--primary))"
+          stroke={data.some(d => d.value < 0) ? "hsl(0 84% 60%)" : "hsl(158 84% 39%)"}
           strokeWidth={2}
-          dot={{ fill: "hsl(var(--primary))", r: 4 }}
-          activeDot={{ r: 6 }}
+          fill={data.some(d => d.value < 0) ? "url(#gradNeg)" : "url(#gradPos)"}
+          dot={{ r: 3, fill: data.some(d => d.value < 0) ? "hsl(0 84% 60%)" : "hsl(158 84% 39%)" }}
+          activeDot={{ r: 5 }}
+          name="Bütçe Bakiyesi"
         />
-      </LineChart>
+      </AreaChart>
     </ResponsiveContainer>
   );
 }

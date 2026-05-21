@@ -8,8 +8,9 @@ import {
   Shield, Bitcoin, BarChart3, ArrowUpRight, ArrowDownRight,
   Flame, AlertTriangle, CheckCircle, Activity, FileText, FileSpreadsheet
 } from "lucide-react";
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo } from "react";
 import { exportAssetsToPDF, exportAssetsToExcel } from "@/lib/export-utils";
+import type { BudgetSummary } from "@shared/schema";
 import { AddAssetDialog } from "@/components/add-asset-dialog";
 import { AssetTable } from "@/components/asset-table";
 import { AssetAllocationChart } from "@/components/asset-allocation-chart";
@@ -74,6 +75,10 @@ export default function Dashboard() {
 
   const { data: performance, isLoading: performanceLoading, error: performanceError } = useQuery<MonthlyPerformance[]>({
     queryKey: [`/api/portfolio/performance?period=${perfPeriod}`],
+  });
+
+  const { data: budgetSummary } = useQuery<BudgetSummary>({
+    queryKey: ["/api/budget/summary"],
   });
 
   const updatePricesMutation = useMutation({
@@ -570,7 +575,29 @@ export default function Dashboard() {
 
         <Card data-testid="card-monthly-performance">
           <CardHeader className="pb-2">
-            <CardTitle>Portföy Performansı</CardTitle>
+            <div className="flex items-start justify-between">
+              <div>
+                <CardTitle>Bütçe Bakiyesi Performansı</CardTitle>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Gelir − Gider + Kasa + Portföy Kar/Zarar = Toplam Bakiye
+                </p>
+              </div>
+              {(() => {
+                const kasaValue = parseFloat(localStorage.getItem("toplam_kasa") || "0");
+                const totalBakiye = kasaValue
+                  + (budgetSummary?.totalIncome || 0)
+                  - (budgetSummary?.totalExpense || 0)
+                  + (summary?.monthlyChangeAmount || 0);
+                return (
+                  <div className="text-right">
+                    <p className="text-xs text-muted-foreground">Toplam Bakiye</p>
+                    <p className={`text-lg font-bold ${totalBakiye >= 0 ? "text-success" : "text-destructive"}`}>
+                      {totalBakiye.toLocaleString("tr-TR", { style: "currency", currency: "TRY", maximumFractionDigits: 0 })}
+                    </p>
+                  </div>
+                );
+              })()}
+            </div>
           </CardHeader>
           <CardContent>
             <Tabs value={perfPeriod} onValueChange={setPerfPeriod} className="mb-4">
@@ -584,9 +611,23 @@ export default function Dashboard() {
               <div className="h-[300px] w-full bg-muted animate-pulse rounded" />
             ) : performanceError ? (
               <div className="flex items-center justify-center h-[300px] text-destructive">Veri yüklenemedi</div>
-            ) : (
-              <MonthlyPerformanceChart data={performance || []} />
-            )}
+            ) : (() => {
+              const kasaValue = parseFloat(localStorage.getItem("toplam_kasa") || "0");
+              const portfolioOffset = summary?.monthlyChangeAmount || 0;
+              const staticOffset = kasaValue + portfolioOffset;
+              const enrichedData = (performance || []).map(p => ({
+                ...p,
+                totalBakiye: p.value + staticOffset,
+              }));
+              const totalBakiye = staticOffset + (budgetSummary?.totalIncome || 0) - (budgetSummary?.totalExpense || 0);
+              return (
+                <MonthlyPerformanceChart
+                  data={enrichedData}
+                  referenceValue={totalBakiye}
+                  referenceLabel={`Toplam Bakiye: ${(totalBakiye / 1000).toFixed(0)}K ₺`}
+                />
+              );
+            })()}
           </CardContent>
         </Card>
       </div>
