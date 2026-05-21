@@ -53,8 +53,6 @@ export function MonthlyPerformanceChart({
     return null;
   };
 
-  const hasTotal = data.some(d => (d as any).totalBakiye !== undefined);
-
   return (
     <ResponsiveContainer width="100%" height={300}>
       <AreaChart data={data} margin={{ top: 8, right: 10, left: 0, bottom: 5 }}>
@@ -66,10 +64,6 @@ export function MonthlyPerformanceChart({
           <linearGradient id="gradNeg" x1="0" y1="0" x2="0" y2="1">
             <stop offset="5%" stopColor="hsl(0 84% 60%)" stopOpacity={0.22} />
             <stop offset="95%" stopColor="hsl(0 84% 60%)" stopOpacity={0.03} />
-          </linearGradient>
-          <linearGradient id="gradTotal" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="hsl(221 64% 45%)" stopOpacity={0.18} />
-            <stop offset="95%" stopColor="hsl(221 64% 45%)" stopOpacity={0.02} />
           </linearGradient>
         </defs>
 
@@ -107,18 +101,6 @@ export function MonthlyPerformanceChart({
         )}
 
         <ReferenceLine y={0} stroke="hsl(var(--border))" strokeWidth={1} />
-
-        {hasTotal && (
-          <Area
-            type="monotone"
-            dataKey="totalBakiye"
-            stroke="hsl(221 64% 45%)"
-            strokeWidth={2}
-            fill="url(#gradTotal)"
-            dot={false}
-            name="Toplam Bakiye"
-          />
-        )}
 
         <Area
           type="monotone"
