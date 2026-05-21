@@ -617,9 +617,12 @@ export default function Dashboard() {
               const staticOffset = kasaValue + portfolioOffset;
               const enrichedData = (performance || []).map(p => ({
                 ...p,
-                totalBakiye: p.value + staticOffset,
+                value: p.value + staticOffset,
               }));
-              const totalBakiye = staticOffset + (budgetSummary?.totalIncome || 0) - (budgetSummary?.totalExpense || 0);
+              const totalBakiye = kasaValue
+                + (budgetSummary?.totalIncome || 0)
+                - (budgetSummary?.totalExpense || 0)
+                + portfolioOffset;
               return (
                 <MonthlyPerformanceChart
                   data={enrichedData}
