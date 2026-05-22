@@ -146,26 +146,36 @@ function DebtDialog({ debt, open, onClose }: { debt?: Debt | null; open: boolean
     setForm(f => ({ ...f, type: t, emoji: cfg.emoji, color: cfg.color }));
   };
 
+  const buildPayload = (data: typeof form) => ({
+    name: data.name,
+    type: data.type,
+    emoji: data.emoji,
+    color: data.color,
+    interestRate: data.interestRate || "0",
+    totalAmount: data.totalAmount,
+    remainingAmount: data.remainingAmount,
+    monthlyPayment: data.monthlyPayment || "0",
+    ...(data.dueDay ? { dueDay: parseInt(data.dueDay) } : {}),
+    ...(data.endDate ? { endDate: data.endDate } : {}),
+    ...(data.notes ? { notes: data.notes } : {}),
+  });
+
   const createMutation = useMutation({
     mutationFn: async (data: typeof form) => {
-      const r = await apiRequest("POST", "/api/debts", {
-        ...data, dueDay: data.dueDay ? parseInt(data.dueDay) : null,
-      });
+      const r = await apiRequest("POST", "/api/debts", buildPayload(data));
       return r.json();
     },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/debts"] }); toast({ title: "✓ Borç eklendi" }); onClose(); },
-    onError: () => toast({ title: "Hata", description: "Borç eklenemedi", variant: "destructive" }),
+    onError: (e: any) => toast({ title: "Hata", description: e?.message || "Borç eklenemedi", variant: "destructive" }),
   });
 
   const updateMutation = useMutation({
     mutationFn: async (data: typeof form) => {
-      const r = await apiRequest("PATCH", `/api/debts/${debt!.id}`, {
-        ...data, dueDay: data.dueDay ? parseInt(data.dueDay) : null,
-      });
+      const r = await apiRequest("PATCH", `/api/debts/${debt!.id}`, buildPayload(data));
       return r.json();
     },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/debts"] }); toast({ title: "✓ Borç güncellendi" }); onClose(); },
-    onError: () => toast({ title: "Hata", description: "Borç güncellenemedi", variant: "destructive" }),
+    onError: (e: any) => toast({ title: "Hata", description: e?.message || "Borç güncellenemedi", variant: "destructive" }),
   });
 
   const isPending = createMutation.isPending || updateMutation.isPending;

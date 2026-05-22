@@ -207,6 +207,10 @@ export const debts = pgTable("debts", {
 export const insertDebtSchema = createInsertSchema(debts).omit({
   id: true,
   createdAt: true,
+}).extend({
+  dueDay: z.union([z.number().int(), z.null()]).optional(),
+  endDate: z.string().nullish().transform(v => v || null),
+  notes: z.string().nullish().transform(v => v || null),
 });
 
 export type InsertDebt = z.infer<typeof insertDebtSchema>;

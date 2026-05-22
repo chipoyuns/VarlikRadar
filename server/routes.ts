@@ -420,7 +420,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const debt = await storage.createDebt(validated);
       res.status(201).json(debt);
     } catch (error) {
-      res.status(400).json({ error: "Invalid debt data" });
+      console.error("POST /api/debts error:", error);
+      res.status(400).json({ error: "Invalid debt data", detail: String(error) });
     }
   });
 
