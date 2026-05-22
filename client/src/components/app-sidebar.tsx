@@ -65,10 +65,10 @@ interface AppSidebarProps {
 
 export function AppSidebar({ collapsed, onCollapse }: AppSidebarProps) {
   const [location] = useLocation();
-  const [settingsOpen, setSettingsOpen] = useState(location.startsWith("/settings") || location === "/ayarlar");
-  const [adminOpen, setAdminOpen] = useState(location.startsWith("/admin"));
-
   const isAdmin = currentUser.role === "admin" || currentUser.role === "superadmin";
+
+  const isSettingsActive = location.startsWith("/settings") || location === "/ayarlar";
+  const isAdminActive = location.startsWith("/admin");
 
   return (
     <aside
@@ -79,11 +79,11 @@ export function AppSidebar({ collapsed, onCollapse }: AppSidebarProps) {
       <div className="p-4 border-b border-[rgba(255,255,255,0.06)] flex-shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg bg-[#00D4AA] glow-green flex items-center justify-center flex-shrink-0">
-            <span className="text-[#080A0F] font-bold text-lg leading-none">F</span>
+            <span className="text-[#080A0F] font-bold text-lg leading-none">E</span>
           </div>
           {!collapsed && (
             <div className="overflow-hidden">
-              <h1 className="text-lg font-semibold text-[#F0F2F7] tracking-tight leading-tight">FinOS</h1>
+              <h1 className="text-lg font-semibold text-[#F0F2F7] tracking-tight leading-tight">EkoS</h1>
               <p className="text-[10px] text-[#4E5A6B] leading-tight">Yatırım Platformu</p>
             </div>
           )}
@@ -130,48 +130,45 @@ export function AppSidebar({ collapsed, onCollapse }: AppSidebarProps) {
           );
         })}
 
-        {/* Settings with Sub Menu */}
-        <div>
-          <button
-            onClick={() => !collapsed && setSettingsOpen(!settingsOpen)}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 relative group"
-            style={{
-              background: location.startsWith("/settings") || location === "/ayarlar"
-                ? "rgba(0,212,170,0.08)"
-                : "transparent",
-              color: location.startsWith("/settings") || location === "/ayarlar"
-                ? "#00D4AA"
-                : "#8892A4",
-            }}
-            onMouseEnter={(e: React.MouseEvent<HTMLButtonElement>) => {
-              if (!(location.startsWith("/settings") || location === "/ayarlar")) {
-                (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.04)";
-                (e.currentTarget as HTMLElement).style.color = "#F0F2F7";
-              }
-            }}
-            onMouseLeave={(e: React.MouseEvent<HTMLButtonElement>) => {
-              if (!(location.startsWith("/settings") || location === "/ayarlar")) {
-                (e.currentTarget as HTMLElement).style.background = "transparent";
-                (e.currentTarget as HTMLElement).style.color = "#8892A4";
-              }
-            }}
-            data-testid="nav-settings"
-          >
-            {(location.startsWith("/settings") || location === "/ayarlar") && (
-              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 bg-[#00D4AA] rounded-r-full" />
-            )}
-            <Settings className="w-5 h-5 flex-shrink-0" />
-            {!collapsed && (
-              <>
-                <span className="text-sm font-medium truncate flex-1 text-left">Ayarlar</span>
-                <ChevronDown className={`w-4 h-4 transition-transform flex-shrink-0 ${settingsOpen ? "rotate-180" : ""}`} />
-              </>
-            )}
-          </button>
+        {/* Settings with Hover Floating Menu */}
+        {!collapsed && (
+          <div className="relative group/menu">
+            <button
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 relative"
+              style={{
+                background: isSettingsActive ? "rgba(0,212,170,0.08)" : "transparent",
+                color: isSettingsActive ? "#00D4AA" : "#8892A4",
+              }}
+              onMouseEnter={(e: React.MouseEvent<HTMLButtonElement>) => {
+                if (!isSettingsActive) {
+                  (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.04)";
+                  (e.currentTarget as HTMLElement).style.color = "#F0F2F7";
+                }
+              }}
+              onMouseLeave={(e: React.MouseEvent<HTMLButtonElement>) => {
+                if (!isSettingsActive) {
+                  (e.currentTarget as HTMLElement).style.background = "transparent";
+                  (e.currentTarget as HTMLElement).style.color = "#8892A4";
+                }
+              }}
+              data-testid="nav-settings"
+            >
+              {isSettingsActive && (
+                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 bg-[#00D4AA] rounded-r-full" />
+              )}
+              <Settings className="w-5 h-5 flex-shrink-0" />
+              <span className="text-sm font-medium truncate flex-1 text-left">Ayarlar</span>
+              <ChevronRight className="w-4 h-4 flex-shrink-0 opacity-60" />
+            </button>
 
-          {/* Settings Sub Items */}
-          {!collapsed && settingsOpen && (
-            <div className="ml-4 mt-1 space-y-1 border-l border-[rgba(255,255,255,0.06)] pl-3">
+            {/* Floating Settings Submenu */}
+            <div
+              className="absolute left-full top-0 ml-2 w-52 bg-[#151A23] border border-[rgba(255,255,255,0.08)] rounded-xl shadow-2xl opacity-0 invisible group-hover/menu:opacity-100 group-hover/menu:visible transition-all duration-200 z-50 py-2"
+              style={{ transform: "translateY(-4px)" }}
+            >
+              <div className="px-3 pb-2 mb-1 border-b border-[rgba(255,255,255,0.06)]">
+                <span className="text-[10px] font-bold text-[#4E5A6B] uppercase tracking-wider">Ayarlar</span>
+              </div>
               {settingsSubItems.map((item) => {
                 const isActive = location === item.href;
                 const Icon = item.icon;
@@ -179,7 +176,7 @@ export function AppSidebar({ collapsed, onCollapse }: AppSidebarProps) {
                   <Link
                     key={item.href}
                     href={item.href}
-                    className="flex items-center gap-2 px-2 py-2 rounded-lg transition-all duration-200 text-xs"
+                    className="flex items-center gap-2.5 px-3 py-2 mx-1 rounded-lg transition-all duration-150 text-xs"
                     style={{
                       background: isActive ? "rgba(0,212,170,0.08)" : "transparent",
                       color: isActive ? "#00D4AA" : "#8892A4",
@@ -203,91 +200,121 @@ export function AppSidebar({ collapsed, onCollapse }: AppSidebarProps) {
                 );
               })}
             </div>
-          )}
-        </div>
+          </div>
+        )}
+        {collapsed && (
+          <Link
+            href="/ayarlar"
+            className="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 relative"
+            style={{
+              background: isSettingsActive ? "rgba(0,212,170,0.08)" : "transparent",
+              color: isSettingsActive ? "#00D4AA" : "#8892A4",
+            }}
+            data-testid="nav-settings"
+          >
+            {isSettingsActive && (
+              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 bg-[#00D4AA] rounded-r-full" />
+            )}
+            <Settings className="w-5 h-5 flex-shrink-0" />
+          </Link>
+        )}
 
-        {/* Admin with Sub Menu - Only for Admins */}
-        {isAdmin && (
-          <div>
+        {/* Admin with Hover Floating Menu - Only for Admins */}
+        {isAdmin && !collapsed && (
+          <div className="relative group/menu-admin">
             <button
-              onClick={() => !collapsed && setAdminOpen(!adminOpen)}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 relative group"
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 relative"
               style={{
-                background: location.startsWith("/admin")
-                  ? "rgba(255,71,87,0.08)"
-                  : "transparent",
-                color: location.startsWith("/admin")
-                  ? "#FF4757"
-                  : "#8892A4",
+                background: isAdminActive ? "rgba(255,71,87,0.08)" : "transparent",
+                color: isAdminActive ? "#FF4757" : "#8892A4",
               }}
               onMouseEnter={(e: React.MouseEvent<HTMLButtonElement>) => {
-                if (!location.startsWith("/admin")) {
+                if (!isAdminActive) {
                   (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.04)";
                   (e.currentTarget as HTMLElement).style.color = "#F0F2F7";
                 }
               }}
               onMouseLeave={(e: React.MouseEvent<HTMLButtonElement>) => {
-                if (!location.startsWith("/admin")) {
+                if (!isAdminActive) {
                   (e.currentTarget as HTMLElement).style.background = "transparent";
                   (e.currentTarget as HTMLElement).style.color = "#8892A4";
                 }
               }}
               data-testid="nav-admin"
             >
-              {location.startsWith("/admin") && (
+              {isAdminActive && (
                 <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 bg-[#FF4757] rounded-r-full" />
               )}
               <div className="relative">
                 <Shield className="w-5 h-5 flex-shrink-0" />
                 <span className="absolute -top-1 -right-1 w-2 h-2 bg-[#FF4757] rounded-full animate-pulse" />
               </div>
-              {!collapsed && (
-                <>
-                  <span className="text-sm font-medium truncate flex-1 text-left">Admin</span>
-                  <span className="px-1.5 py-0.5 text-[9px] font-bold bg-[#FF4757] text-white rounded flex-shrink-0">
-                    ADMIN
-                  </span>
-                  <ChevronDown className={`w-4 h-4 transition-transform flex-shrink-0 ${adminOpen ? "rotate-180" : ""}`} />
-                </>
-              )}
+              <span className="text-sm font-medium truncate flex-1 text-left">Admin</span>
+              <span className="px-1.5 py-0.5 text-[9px] font-bold bg-[#FF4757] text-white rounded flex-shrink-0">
+                ADMIN
+              </span>
+              <ChevronRight className="w-4 h-4 flex-shrink-0 opacity-60" />
             </button>
 
-            {/* Admin Sub Items */}
-            {!collapsed && adminOpen && (
-              <div className="ml-4 mt-1 space-y-1 border-l border-[rgba(255,71,87,0.2)] pl-3">
-                {adminSubItems.map((item) => {
-                  const isActive = location === item.href;
-                  const Icon = item.icon;
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      className="flex items-center gap-2 px-2 py-2 rounded-lg transition-all duration-200 text-xs"
-                      style={{
-                        background: isActive ? "rgba(255,71,87,0.08)" : "transparent",
-                        color: isActive ? "#FF4757" : "#8892A4",
-                      }}
-                      onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => {
-                        if (!isActive) {
-                          (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.04)";
-                          (e.currentTarget as HTMLElement).style.color = "#F0F2F7";
-                        }
-                      }}
-                      onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => {
-                        if (!isActive) {
-                          (e.currentTarget as HTMLElement).style.background = "transparent";
-                          (e.currentTarget as HTMLElement).style.color = "#8892A4";
-                        }
-                      }}
-                    >
-                      <Icon className="w-4 h-4 flex-shrink-0" />
-                      <span className="truncate">{item.label}</span>
-                    </Link>
-                  );
-                })}
+            {/* Floating Admin Submenu */}
+            <div
+              className="absolute left-full top-0 ml-2 w-52 bg-[#151A23] border border-[rgba(255,255,255,0.08)] rounded-xl shadow-2xl opacity-0 invisible group-hover/menu-admin:opacity-100 group-hover/menu-admin:visible transition-all duration-200 z-50 py-2"
+              style={{ transform: "translateY(-4px)" }}
+            >
+              <div className="px-3 pb-2 mb-1 border-b border-[rgba(255,255,255,0.06)]">
+                <span className="text-[10px] font-bold text-[#FF4757] uppercase tracking-wider">Admin Panel</span>
               </div>
-            )}
+              {adminSubItems.map((item) => {
+                const isActive = location === item.href;
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className="flex items-center gap-2.5 px-3 py-2 mx-1 rounded-lg transition-all duration-150 text-xs"
+                    style={{
+                      background: isActive ? "rgba(255,71,87,0.08)" : "transparent",
+                      color: isActive ? "#FF4757" : "#8892A4",
+                    }}
+                    onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => {
+                      if (!isActive) {
+                        (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.04)";
+                        (e.currentTarget as HTMLElement).style.color = "#F0F2F7";
+                      }
+                    }}
+                    onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => {
+                      if (!isActive) {
+                        (e.currentTarget as HTMLElement).style.background = "transparent";
+                        (e.currentTarget as HTMLElement).style.color = "#8892A4";
+                      }
+                    }}
+                  >
+                    <Icon className="w-4 h-4 flex-shrink-0" />
+                    <span className="truncate">{item.label}</span>
+                  </Link>
+                );
+              })}
+            </div>
           </div>
+        )}
+        {isAdmin && collapsed && (
+          <Link
+            href="/admin"
+            className="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 relative"
+            style={{
+              background: isAdminActive ? "rgba(255,71,87,0.08)" : "transparent",
+              color: isAdminActive ? "#FF4757" : "#8892A4",
+            }}
+            data-testid="nav-admin"
+          >
+            {isAdminActive && (
+              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 bg-[#FF4757] rounded-r-full" />
+            )}
+            <div className="relative">
+              <Shield className="w-5 h-5 flex-shrink-0" />
+              <span className="absolute -top-1 -right-1 w-2 h-2 bg-[#FF4757] rounded-full animate-pulse" />
+            </div>
+          </Link>
         )}
       </nav>
 
