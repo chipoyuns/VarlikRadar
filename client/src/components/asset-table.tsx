@@ -1,5 +1,3 @@
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
 import { Trash2, TrendingUp, TrendingDown, Pencil } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
@@ -13,57 +11,49 @@ interface AssetTableProps {
   searchTerm?: string;
 }
 
+const TYPE_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
+  hisse:       { label: "Hisse",  color: "#4B9EFF", bg: "rgba(75,158,255,0.12)" },
+  etf:         { label: "ETF",    color: "#00D4AA", bg: "rgba(0,212,170,0.12)" },
+  kripto:      { label: "Kripto", color: "#FFB833", bg: "rgba(255,184,51,0.12)" },
+  emtia:       { label: "Emtia",  color: "#FF6B6B", bg: "rgba(255,107,107,0.12)" },
+  madeni_para: { label: "Emtia",  color: "#FF8E53", bg: "rgba(255,142,83,0.12)" },
+};
+
 export function AssetTable({ assets, searchTerm = "" }: AssetTableProps) {
   const { toast } = useToast();
   const [editAsset, setEditAsset] = useState<AssetDetail | null>(null);
+
   const filteredAssets = assets.filter((asset) => {
     const term = searchTerm.trim().toLowerCase();
     if (!term) return true;
     return [asset.name, asset.symbol, asset.market, asset.type, asset.currency].some((value) =>
-      value.toLowerCase().includes(term)
+      value?.toLowerCase().includes(term)
     );
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      return await apiRequest("DELETE", `/api/assets/${id}`, undefined);
-    },
+    mutationFn: async (id: string) => await apiRequest("DELETE", `/api/assets/${id}`, undefined),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/assets"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/portfolio/summary"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/portfolio/allocation"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/portfolio/performance"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/portfolio/details"] });
+      ["assets","portfolio/summary","portfolio/allocation","portfolio/performance","portfolio/details"].forEach(k =>
+        queryClient.invalidateQueries({ queryKey: [`/api/${k}`] })
+      );
       toast({ title: "Başarılı", description: "Varlık başarıyla silindi" });
     },
-    onError: () => {
-      toast({ title: "Hata", description: "Varlık silinirken bir hata oluştu", variant: "destructive" });
-    },
+    onError: () => toast({ title: "Hata", description: "Varlık silinirken bir hata oluştu", variant: "destructive" }),
   });
 
-  const formatCurrency = (amount: number | undefined, currency: string) => {
+  const fmtCurrency = (amount: number | undefined, currency: string) => {
     const symbols: Record<string, string> = { TRY: "₺", USD: "$", EUR: "€" };
-    const value = amount ?? 0;
-    return `${symbols[currency] || ""}${value.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  };
-
-  const formatPercent = (percent: number) => {
-    return `${percent >= 0 ? "+" : ""}${percent.toFixed(2)}%`;
-  };
-
-  const assetTypeNames: Record<string, string> = {
-    hisse: "Hisse",
-    etf: "ETF",
-    kripto: "Kripto",
-    madeni_para: "Madeni Para",
+    const v = amount ?? 0;
+    return `${symbols[currency] || ""}${v.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
   if (filteredAssets.length === 0) {
     return (
-      <div className="text-center py-12 text-muted-foreground" data-testid="empty-assets">
+      <div className="text-center py-12 text-[#4E5A6B] text-sm" data-testid="empty-assets">
         <p>{searchTerm ? "Aramaya uygun varlık bulunamadı" : "Henüz varlık eklenmemiş"}</p>
-        <p className="text-sm mt-1">
-          {searchTerm ? "Farklı bir arama terimi deneyin" : "Portföyünüze varlık eklemek için yukarıdaki butonu kullanın"}
+        <p className="text-xs mt-1 text-[#4E5A6B]/70">
+          {searchTerm ? "Farklı bir arama terimi deneyin" : "Portföyünüze varlık eklemek için Varlık Ekle butonunu kullanın"}
         </p>
       </div>
     );
@@ -71,73 +61,100 @@ export function AssetTable({ assets, searchTerm = "" }: AssetTableProps) {
 
   return (
     <>
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Varlık</TableHead>
-              <TableHead>Tip</TableHead>
-              <TableHead>Borsa</TableHead>
-              <TableHead className="text-right">Miktar</TableHead>
-              <TableHead className="text-right">Ort. Fiyat</TableHead>
-              <TableHead className="text-right">Güncel Fiyat</TableHead>
-              <TableHead className="text-right">Toplam Değer</TableHead>
-              <TableHead className="text-right">Değişim</TableHead>
-              <TableHead className="text-right">Kar/Zarar</TableHead>
-              <TableHead className="w-[100px]"></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredAssets.map((asset) => (
-              <TableRow key={asset.id} data-testid={`asset-row-${asset.id}`}>
-                <TableCell className="font-medium">
-                  <div>
-                    <div>{asset.name}</div>
-                    <div className="text-sm text-muted-foreground">{asset.symbol} · {asset.currency}</div>
-                  </div>
-                </TableCell>
-                <TableCell>{assetTypeNames[asset.type] || asset.type}</TableCell>
-                <TableCell>{asset.market}</TableCell>
-                <TableCell className="text-right">{Number(asset.quantity).toLocaleString("tr-TR", { maximumFractionDigits: 8 })}</TableCell>
-                <TableCell className="text-right">{formatCurrency(Number(asset.averagePrice), asset.currency)}</TableCell>
-                <TableCell className="text-right">{formatCurrency(Number(asset.currentPrice), asset.currency)}</TableCell>
-                <TableCell className="text-right font-medium">{formatCurrency(asset.totalValue, asset.currency)}</TableCell>
-                <TableCell className="text-right">
-                  <div className={`flex items-center justify-end gap-1 ${asset.change >= 0 ? "text-success" : "text-destructive"}`}>
-                    {asset.change >= 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
-                    <span>{formatPercent(asset.change)}</span>
-                  </div>
-                </TableCell>
-                <TableCell className="text-right font-medium">
-                  <span className={`${(asset.profit ?? 0) >= 0 ? "text-success" : "text-destructive"}`}>
-                    {(asset.profit ?? 0) >= 0 ? "+" : ""}{formatCurrency(asset.profit, asset.currency)}
-                  </span>
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setEditAsset(asset)}
-                      data-testid={`button-edit-${asset.id}`}
-                    >
-                      <Pencil className="h-4 w-4 text-muted-foreground" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => deleteMutation.mutate(asset.id)}
-                      disabled={deleteMutation.isPending}
-                      data-testid={`button-delete-${asset.id}`}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[780px]">
+          <thead>
+            <tr className="border-b border-[rgba(255,255,255,0.05)]">
+              {["Varlık", "Tip", "Borsa", "Miktar", "Ort. Fiyat", "Güncel Fiyat", "Toplam Değer", "Değişim", "Kar/Zarar", ""].map((h, i) => (
+                <th key={i} className={`pb-3 text-xs font-medium text-[#4E5A6B] uppercase tracking-wider ${i >= 3 && i <= 8 ? "text-right" : "text-left"} ${i === 9 ? "w-20" : ""}`}>
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {filteredAssets.map((asset, idx) => {
+              const cfg = TYPE_CONFIG[asset.type] || { label: asset.type, color: "#8892A4", bg: "rgba(136,146,164,0.1)" };
+              const pnl = asset.profit ?? 0;
+              const change = asset.change ?? 0;
+              const isPos = change >= 0;
+              const isPnlPos = pnl >= 0;
+              return (
+                <tr
+                  key={asset.id}
+                  className="border-b border-[rgba(255,255,255,0.03)] hover:bg-[rgba(255,255,255,0.02)] transition-colors group"
+                  data-testid={`asset-row-${asset.id}`}
+                >
+                  <td className="py-3.5 pr-4">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0"
+                        style={{ backgroundColor: cfg.bg, color: cfg.color }}>
+                        {asset.symbol?.slice(0, 2).toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-[#F0F2F7]">{asset.name}</p>
+                        <p className="text-xs text-[#4E5A6B] font-mono">{asset.symbol} · {asset.currency}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="py-3.5 pr-4">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium"
+                      style={{ backgroundColor: cfg.bg, color: cfg.color }}>
+                      {cfg.label}
+                    </span>
+                  </td>
+                  <td className="py-3.5 pr-4">
+                    <span className="text-sm text-[#8892A4]">{asset.market}</span>
+                  </td>
+                  <td className="py-3.5 pr-4 text-right">
+                    <span className="text-sm font-mono text-[#F0F2F7]">
+                      {Number(asset.quantity).toLocaleString("tr-TR", { maximumFractionDigits: 8 })}
+                    </span>
+                  </td>
+                  <td className="py-3.5 pr-4 text-right">
+                    <span className="text-sm font-mono text-[#8892A4]">{fmtCurrency(Number(asset.averagePrice), asset.currency)}</span>
+                  </td>
+                  <td className="py-3.5 pr-4 text-right">
+                    <span className="text-sm font-mono text-[#F0F2F7] font-medium">{fmtCurrency(Number(asset.currentPrice), asset.currency)}</span>
+                  </td>
+                  <td className="py-3.5 pr-4 text-right">
+                    <span className="text-sm font-mono font-semibold text-[#F0F2F7]">{fmtCurrency(asset.totalValue, asset.currency)}</span>
+                  </td>
+                  <td className="py-3.5 pr-4 text-right">
+                    <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-mono font-semibold ${isPos ? "bg-[rgba(0,212,170,0.1)] text-[#00D4AA]" : "bg-[rgba(255,71,87,0.1)] text-[#FF4757]"}`}>
+                      {isPos ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                      {isPos ? "+" : ""}{change.toFixed(2)}%
+                    </div>
+                  </td>
+                  <td className="py-3.5 pr-4 text-right">
+                    <span className={`text-sm font-mono font-semibold ${isPnlPos ? "text-[#00D4AA]" : "text-[#FF4757]"}`}>
+                      {isPnlPos ? "+" : ""}{fmtCurrency(pnl, asset.currency)}
+                    </span>
+                  </td>
+                  <td className="py-3.5">
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => setEditAsset(asset)}
+                        className="p-1.5 rounded-lg hover:bg-[rgba(75,158,255,0.1)] text-[#4E5A6B] hover:text-[#4B9EFF] transition-colors"
+                        data-testid={`button-edit-${asset.id}`}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        onClick={() => deleteMutation.mutate(asset.id)}
+                        disabled={deleteMutation.isPending}
+                        className="p-1.5 rounded-lg hover:bg-[rgba(255,71,87,0.1)] text-[#4E5A6B] hover:text-[#FF4757] transition-colors"
+                        data-testid={`button-delete-${asset.id}`}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
 
       <EditAssetDialog

@@ -1,5 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Plus, RefreshCw, Eye, EyeOff, Shield, Bitcoin, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, BarChart3, FileText, FileSpreadsheet } from "lucide-react";
+import { Plus, RefreshCw, Eye, EyeOff, Shield, Bitcoin, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, BarChart3, FileText, FileSpreadsheet, Heart, Target, Layers, AlertTriangle, CheckCircle } from "lucide-react";
 import { useState, useMemo } from "react";
 import { exportAssetsToPDF, exportAssetsToExcel } from "@/lib/export-utils";
 import type { BudgetSummary } from "@shared/schema";
@@ -52,11 +52,20 @@ function StatSkeleton() {
   );
 }
 
+const ASSET_FILTERS = [
+  { key: "all",    label: "Tümü" },
+  { key: "hisse",  label: "Hisse Senedi" },
+  { key: "kripto", label: "Kripto" },
+  { key: "etf",    label: "ETF" },
+  { key: "emtia",  label: "Emtia" },
+] as const;
+
 export default function Dashboard() {
   const [isAddAssetOpen, setIsAddAssetOpen] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<string | null>(null);
   const [perfPeriod, setPerfPeriod] = useState<string>("monthly");
   const [assetSearch, setAssetSearch] = useState("");
+  const [assetTypeFilter, setAssetTypeFilter] = useState<string>("all");
   const [privacyMode, setPrivacyMode] = useState(false);
   const { toast } = useToast();
   const { formatDisplayCurrency, displayCurrency, isLoadingRates } = useDisplayCurrency();
@@ -126,6 +135,54 @@ export default function Dashboard() {
       riskHex: hex, volatility: vol, topConcentration: topConc, sparklineData: sparkData };
   }, [assets, allocation, performance]);
 
+  /* Portföy Sağlık Puanı hesaplama */
+  const healthScore = useMemo(() => {
+    const all = assets || [];
+    if (all.length === 0) return { score: 0, grade: "—", color: "#4E5A6B", items: [] };
+
+    let score = 100;
+    const items: { label: string; desc: string; ok: boolean }[] = [];
+
+    // Çeşitlendirme
+    const types = new Set(all.map(a => a.type)).size;
+    const diversified = types >= 3;
+    items.push({ label: "Çeşitlendirme", desc: diversified ? `${types} farklı varlık türü` : `Sadece ${types} tür — çeşitlendirin`, ok: diversified });
+    if (!diversified) score -= 20;
+
+    // Kripto yoğunluğu
+    const cryptoOk = cryptoWeight <= 40;
+    items.push({ label: "Kripto Ağırlığı", desc: cryptoOk ? `%${cryptoWeight.toFixed(0)} — dengeli` : `%${cryptoWeight.toFixed(0)} — çok yüksek`, ok: cryptoOk });
+    if (!cryptoOk) score -= 25;
+
+    // Konsantrasyon riski
+    const concOk = topConcentration <= 60;
+    items.push({ label: "Konsantrasyon Riski", desc: concOk ? `En büyük pozisyon %${topConcentration.toFixed(0)}` : `Tek varlık %${topConcentration.toFixed(0)} — riskli`, ok: concOk });
+    if (!concOk) score -= 20;
+
+    // Volatilite
+    const volOk = volatility <= 10;
+    items.push({ label: "Volatilite", desc: volOk ? `Ortalama %${volatility.toFixed(1)} — düşük` : `Ortalama %${volatility.toFixed(1)} — yüksek`, ok: volOk });
+    if (!volOk) score -= 15;
+
+    // Varlık sayısı
+    const countOk = all.length >= 5;
+    items.push({ label: "Varlık Sayısı", desc: countOk ? `${all.length} varlık — iyi` : `${all.length} varlık — az`, ok: countOk });
+    if (!countOk) score -= 10;
+
+    score = Math.max(0, Math.min(100, score));
+    let grade = "A+", color = "#00D4AA";
+    if (score < 40) { grade = "D"; color = "#FF4757"; }
+    else if (score < 55) { grade = "C"; color = "#FF8E53"; }
+    else if (score < 70) { grade = "B"; color = "#FFB833"; }
+    else if (score < 85) { grade = "A"; color = "#00D4AA"; }
+
+    return { score, grade, color, items };
+  }, [assets, cryptoWeight, topConcentration, volatility]);
+
+  /* Bütçe Toplam Bakiye */
+  const kasaValue = useMemo(() => parseFloat(localStorage.getItem("toplam_kasa") || "0"), []);
+  const totalBakiye = kasaValue + (budgetSummary?.totalIncome || 0) - (budgetSummary?.totalExpense || 0);
+
   const insights = useMemo(() => {
     const all = assets || [];
     const msgs: string[] = [];
@@ -144,9 +201,19 @@ export default function Dashboard() {
   }, [assets, summary, bestNonCrypto, bestCrypto, worstAsset, cryptoWeight, nonCryptoPnLTRY, cryptoPnLTRY]);
 
   const isLoading = summaryLoading || assetsLoading;
-  const filteredAssets = (assets || []).filter(a =>
-    !assetSearch || a.name?.toLowerCase().includes(assetSearch.toLowerCase()) || a.symbol?.toLowerCase().includes(assetSearch.toLowerCase())
-  );
+
+  const filteredAssets = useMemo(() => {
+    const all = assets || [];
+    return all.filter(a => {
+      const matchType = assetTypeFilter === "all"
+        || a.type === assetTypeFilter
+        || (assetTypeFilter === "emtia" && (a.type === "emtia" || a.type === "madeni_para"));
+      const matchSearch = !assetSearch
+        || a.name?.toLowerCase().includes(assetSearch.toLowerCase())
+        || a.symbol?.toLowerCase().includes(assetSearch.toLowerCase());
+      return matchType && matchSearch;
+    });
+  }, [assets, assetTypeFilter, assetSearch]);
 
   return (
     <div className="space-y-6">
@@ -317,9 +384,9 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Risk Card */}
+      {/* Risk Card — tüm içerik dikey ortada */}
       <div className="finos-card p-5" style={{ borderLeft: `3px solid ${riskHex}` }}>
-        <div className="flex flex-wrap items-start gap-6">
+        <div className="flex flex-wrap items-center gap-6">
           <div className="flex items-center gap-3 min-w-[140px]">
             <div className="p-2 rounded-xl" style={{ backgroundColor: `${riskHex}15` }}>
               <Shield className="h-5 w-5" style={{ color: riskHex }} />
@@ -329,9 +396,9 @@ export default function Dashboard() {
               <p className="text-xl font-bold mt-0.5 font-mono" style={{ color: riskHex }}>{riskLabel}</p>
             </div>
           </div>
-          <div className="flex flex-wrap gap-6 flex-1">
-            <div>
-              <p className="text-xs text-[#4E5A6B] mb-1">Risk Skoru</p>
+          <div className="flex flex-wrap items-center gap-6 flex-1">
+            <div className="flex flex-col items-center gap-1">
+              <p className="text-xs text-[#4E5A6B]">Risk Skoru</p>
               <div className="flex items-center gap-2">
                 <span className="text-lg font-bold font-mono" style={{ color: riskHex }}>{riskScore.toFixed(1)}/10</span>
                 <div className="flex gap-1">
@@ -341,17 +408,17 @@ export default function Dashboard() {
                 </div>
               </div>
             </div>
-            <div>
-              <p className="text-xs text-[#4E5A6B] mb-1">Kripto Ağırlığı</p>
+            <div className="flex flex-col items-center gap-1">
+              <p className="text-xs text-[#4E5A6B]">Kripto Ağırlığı</p>
               <p className="text-lg font-bold font-mono text-[#F0F2F7]">%{cryptoWeight.toFixed(1)}</p>
             </div>
-            <div>
-              <p className="text-xs text-[#4E5A6B] mb-1">Volatilite</p>
+            <div className="flex flex-col items-center gap-1">
+              <p className="text-xs text-[#4E5A6B]">Volatilite</p>
               <p className="text-lg font-bold font-mono text-[#F0F2F7]">{volatility.toFixed(1)}%</p>
               <p className="text-xs text-[#4E5A6B]">Ortalama değişim</p>
             </div>
-            <div>
-              <p className="text-xs text-[#4E5A6B] mb-1">Konsantrasyon</p>
+            <div className="flex flex-col items-center gap-1">
+              <p className="text-xs text-[#4E5A6B]">Konsantrasyon</p>
               <p className="text-lg font-bold font-mono text-[#F0F2F7]">%{topConcentration.toFixed(1)}</p>
               <p className="text-xs text-[#4E5A6B]">En büyük pozisyon</p>
             </div>
@@ -389,17 +456,28 @@ export default function Dashboard() {
 
       {/* Charts */}
       <div className="grid gap-6 lg:grid-cols-2">
+        {/* Varlık Dağılımı - Simit Grafik */}
         <div className="finos-card p-5">
           <h3 className="text-sm font-semibold text-[#F0F2F7] mb-4">Varlık Dağılımı</h3>
           {allocationLoading ? (
-            <div className="h-[250px] skeleton-shimmer" />
+            <div className="h-[280px] skeleton-shimmer" />
           ) : (
             <AssetAllocationChart data={allocation || []} />
           )}
         </div>
+
+        {/* Bütçe Bakiyesi Performansı */}
         <div className="finos-card p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-semibold text-[#F0F2F7]">Bütçe Bakiyesi Performansı</h3>
+          <div className="flex items-start justify-between mb-3">
+            <div>
+              <h3 className="text-sm font-semibold text-[#F0F2F7]">Bütçe Bakiyesi Performansı</h3>
+              <div className="flex items-baseline gap-2 mt-1">
+                <span className={`text-2xl font-bold font-mono ${totalBakiye >= 0 ? "text-[#00D4AA]" : "text-[#FF4757]"}`}>
+                  {privacyMode ? "•••••" : totalBakiye.toLocaleString("tr-TR", { style: "currency", currency: "TRY", maximumFractionDigits: 0 })}
+                </span>
+                <span className="text-xs text-[#4E5A6B]">Toplam Bakiye</span>
+              </div>
+            </div>
             <div className="flex gap-1">
               {["monthly", "quarterly", "yearly"].map(p => (
                 <button key={p} onClick={() => setPerfPeriod(p)}
@@ -411,7 +489,7 @@ export default function Dashboard() {
             </div>
           </div>
           {performanceLoading ? (
-            <div className="h-[250px] skeleton-shimmer" />
+            <div className="h-[220px] skeleton-shimmer" />
           ) : (
             <MonthlyPerformanceChart data={performance || []} />
           )}
@@ -421,7 +499,39 @@ export default function Dashboard() {
       {/* Asset Table */}
       <div className="finos-card p-5">
         <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
-          <h3 className="text-sm font-semibold text-[#F0F2F7]">Varlıklarım</h3>
+          <div className="flex items-center gap-3 flex-wrap">
+            <h3 className="text-sm font-semibold text-[#F0F2F7]">Varlıklarım</h3>
+            {/* Kategori Filtre Sekmeleri */}
+            <div className="flex gap-1 flex-wrap" data-testid="asset-type-filters">
+              {ASSET_FILTERS.map(f => {
+                const count = f.key === "all"
+                  ? (assets || []).length
+                  : (assets || []).filter(a => a.type === f.key || (f.key === "emtia" && a.type === "madeni_para")).length;
+                const isActive = assetTypeFilter === f.key;
+                return (
+                  <button
+                    key={f.key}
+                    onClick={() => setAssetTypeFilter(f.key)}
+                    className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium transition-all"
+                    style={{
+                      background: isActive ? "rgba(0,212,170,0.12)" : "rgba(255,255,255,0.04)",
+                      color: isActive ? "#00D4AA" : "#8892A4",
+                      border: isActive ? "1px solid rgba(0,212,170,0.3)" : "1px solid rgba(255,255,255,0.06)",
+                    }}
+                    data-testid={`filter-${f.key}`}
+                  >
+                    {f.label}
+                    {count > 0 && (
+                      <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold"
+                        style={{ background: isActive ? "rgba(0,212,170,0.2)" : "rgba(255,255,255,0.06)", color: isActive ? "#00D4AA" : "#4E5A6B" }}>
+                        {count}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
           <div className="flex items-center gap-2 flex-wrap">
             <input
               placeholder="Varlık ara..."
@@ -449,6 +559,53 @@ export default function Dashboard() {
         ) : (
           <AssetTable assets={filteredAssets} />
         )}
+      </div>
+
+      {/* Portföy Sağlık Puanı */}
+      <div className="finos-card p-5">
+        <div className="flex items-center gap-2 mb-5">
+          <div className="p-1.5 rounded-lg" style={{ backgroundColor: `${healthScore.color}15` }}>
+            <Heart className="h-4 w-4" style={{ color: healthScore.color }} />
+          </div>
+          <h3 className="text-sm font-semibold text-[#F0F2F7]">Portföy Sağlık Puanı</h3>
+        </div>
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* Puan Göstergesi */}
+          <div className="flex flex-col items-center justify-center gap-2 lg:w-48 flex-shrink-0">
+            <div className="relative w-32 h-32">
+              <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90">
+                <circle cx="60" cy="60" r="50" fill="none" stroke="#151A23" strokeWidth="10" />
+                <circle cx="60" cy="60" r="50" fill="none" stroke={healthScore.color} strokeWidth="10"
+                  strokeDasharray={`${(healthScore.score / 100) * 314} 314`}
+                  strokeLinecap="round"
+                  style={{ transition: "stroke-dasharray 1s ease" }}
+                />
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className="text-3xl font-black font-mono" style={{ color: healthScore.color }}>{healthScore.grade}</span>
+                <span className="text-xs text-[#4E5A6B]">{healthScore.score}/100</span>
+              </div>
+            </div>
+            <p className="text-sm font-medium text-center" style={{ color: healthScore.color }}>
+              {healthScore.score >= 85 ? "Mükemmel Portföy" : healthScore.score >= 70 ? "İyi Portföy" : healthScore.score >= 55 ? "Geliştirilmeli" : healthScore.score >= 40 ? "Zayıf" : assets?.length === 0 ? "Varlık Yok" : "Riskli"}
+            </p>
+          </div>
+          {/* Metrikler */}
+          <div className="grid gap-3 flex-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+            {healthScore.items.map((item, i) => (
+              <div key={i} className="finos-card-inner p-3 rounded-xl flex flex-col gap-1.5">
+                <div className="flex items-center gap-1.5">
+                  {item.ok
+                    ? <CheckCircle className="h-3.5 w-3.5 text-[#00D4AA] flex-shrink-0" />
+                    : <AlertTriangle className="h-3.5 w-3.5 text-[#FFB833] flex-shrink-0" />
+                  }
+                  <p className="text-xs font-medium text-[#F0F2F7]">{item.label}</p>
+                </div>
+                <p className="text-xs text-[#8892A4] leading-relaxed">{item.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
       <AddAssetDialog open={isAddAssetOpen} onOpenChange={setIsAddAssetOpen} />
