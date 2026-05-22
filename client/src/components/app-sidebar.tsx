@@ -133,19 +133,20 @@ export function AppSidebar({ collapsed, onCollapse }: AppSidebarProps) {
         {/* Settings with Hover Floating Menu */}
         {!collapsed && (
           <div className="relative group/menu">
-            <button
+            <Link
+              href="/ayarlar"
               className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 relative"
               style={{
                 background: isSettingsActive ? "rgba(0,212,170,0.08)" : "transparent",
                 color: isSettingsActive ? "#00D4AA" : "#8892A4",
               }}
-              onMouseEnter={(e: React.MouseEvent<HTMLButtonElement>) => {
+              onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => {
                 if (!isSettingsActive) {
                   (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.04)";
                   (e.currentTarget as HTMLElement).style.color = "#F0F2F7";
                 }
               }}
-              onMouseLeave={(e: React.MouseEvent<HTMLButtonElement>) => {
+              onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => {
                 if (!isSettingsActive) {
                   (e.currentTarget as HTMLElement).style.background = "transparent";
                   (e.currentTarget as HTMLElement).style.color = "#8892A4";
@@ -159,11 +160,13 @@ export function AppSidebar({ collapsed, onCollapse }: AppSidebarProps) {
               <Settings className="w-5 h-5 flex-shrink-0" />
               <span className="text-sm font-medium truncate flex-1 text-left">Ayarlar</span>
               <ChevronRight className="w-4 h-4 flex-shrink-0 opacity-60" />
-            </button>
+            </Link>
 
             {/* Floating Settings Submenu */}
+            {/* Invisible bridge to maintain hover while moving from button to menu */}
+            <div className="absolute left-full top-0 bottom-0 w-3 bg-transparent z-50 invisible group-hover/menu:visible" />
             <div
-              className="absolute left-full top-0 ml-2 w-52 bg-[#151A23] border border-[rgba(255,255,255,0.08)] rounded-xl shadow-2xl opacity-0 invisible group-hover/menu:opacity-100 group-hover/menu:visible transition-all duration-200 z-50 py-2"
+              className="absolute left-full top-0 ml-2 w-52 bg-[#151A23] border border-[rgba(255,255,255,0.08)] rounded-xl shadow-2xl opacity-0 invisible group-hover/menu:opacity-100 group-hover/menu:visible hover:opacity-100 hover:visible transition-all duration-200 z-50 py-2"
               style={{ transform: "translateY(-4px)" }}
             >
               <div className="px-3 pb-2 mb-1 border-b border-[rgba(255,255,255,0.06)]">
@@ -222,19 +225,20 @@ export function AppSidebar({ collapsed, onCollapse }: AppSidebarProps) {
         {/* Admin with Hover Floating Menu - Only for Admins */}
         {isAdmin && !collapsed && (
           <div className="relative group/menu-admin">
-            <button
+            <Link
+              href="/admin"
               className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 relative"
               style={{
                 background: isAdminActive ? "rgba(255,71,87,0.08)" : "transparent",
                 color: isAdminActive ? "#FF4757" : "#8892A4",
               }}
-              onMouseEnter={(e: React.MouseEvent<HTMLButtonElement>) => {
+              onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => {
                 if (!isAdminActive) {
                   (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.04)";
                   (e.currentTarget as HTMLElement).style.color = "#F0F2F7";
                 }
               }}
-              onMouseLeave={(e: React.MouseEvent<HTMLButtonElement>) => {
+              onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => {
                 if (!isAdminActive) {
                   (e.currentTarget as HTMLElement).style.background = "transparent";
                   (e.currentTarget as HTMLElement).style.color = "#8892A4";
@@ -254,11 +258,13 @@ export function AppSidebar({ collapsed, onCollapse }: AppSidebarProps) {
                 ADMIN
               </span>
               <ChevronRight className="w-4 h-4 flex-shrink-0 opacity-60" />
-            </button>
+            </Link>
 
             {/* Floating Admin Submenu */}
+            {/* Invisible bridge to maintain hover while moving from button to menu */}
+            <div className="absolute left-full top-0 bottom-0 w-3 bg-transparent z-50 invisible group-hover/menu-admin:visible" />
             <div
-              className="absolute left-full top-0 ml-2 w-52 bg-[#151A23] border border-[rgba(255,255,255,0.08)] rounded-xl shadow-2xl opacity-0 invisible group-hover/menu-admin:opacity-100 group-hover/menu-admin:visible transition-all duration-200 z-50 py-2"
+              className="absolute left-full top-0 ml-2 w-52 bg-[#151A23] border border-[rgba(255,255,255,0.08)] rounded-xl shadow-2xl opacity-0 invisible group-hover/menu-admin:opacity-100 group-hover/menu-admin:visible hover:opacity-100 hover:visible transition-all duration-200 z-50 py-2"
               style={{ transform: "translateY(-4px)" }}
             >
               <div className="px-3 pb-2 mb-1 border-b border-[rgba(255,255,255,0.06)]">
