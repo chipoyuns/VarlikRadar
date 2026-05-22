@@ -12,9 +12,20 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  Shield,
+  Eye,
+  Bell,
+  Lock,
+  Palette,
+  Globe,
+  Crown,
+  Database,
 } from "lucide-react";
 
-const navItems = [
+const currentUser = { role: "admin" };
+
+const mainNavItems = [
   { href: "/", label: "Portföyüm", icon: Briefcase },
   { href: "/islemler", label: "İşlemler", icon: ArrowLeftRight },
   { href: "/butce", label: "Bütçe", icon: Wallet },
@@ -23,7 +34,28 @@ const navItems = [
   { href: "/simulator", label: "Simülatör", icon: TrendingUp },
   { href: "/ai-koc", label: "AI Koç", icon: Sparkles },
   { href: "/raporlar", label: "Raporlar", icon: FileBarChart },
-  { href: "/ayarlar", label: "Ayarlar", icon: Settings },
+];
+
+const settingsSubItems = [
+  { href: "/ayarlar", label: "Genel", icon: Settings },
+  { href: "/settings/gorunum", label: "Görünüm", icon: Palette },
+  { href: "/settings/bildirimler", label: "Bildirimler", icon: Bell },
+  { href: "/settings/gizlilik", label: "Gizlilik", icon: Lock },
+  { href: "/settings/bolgesel", label: "Bölgesel", icon: Globe },
+  { href: "/settings/premium", label: "Premium", icon: Crown },
+  { href: "/settings/yedekleme", label: "Yedekleme", icon: Database },
+];
+
+const adminSubItems = [
+  { href: "/admin", label: "Genel Bakış", icon: Eye },
+  { href: "/admin/kullanicilar", label: "Kullanıcılar", icon: Briefcase },
+  { href: "/admin/uyeler", label: "Üyeler", icon: CreditCard },
+  { href: "/admin/istatistikler", label: "İstatistikler", icon: TrendingUp },
+  { href: "/admin/icerik", label: "İçerik", icon: FileBarChart },
+  { href: "/admin/sistem", label: "Sistem", icon: Database },
+  { href: "/admin/guvenlik", label: "Güvenlik", icon: Shield },
+  { href: "/admin/ayarlar", label: "Ayarlar", icon: Settings },
+  { href: "/admin/destek", label: "Destek", icon: Sparkles },
 ];
 
 interface AppSidebarProps {
@@ -33,11 +65,15 @@ interface AppSidebarProps {
 
 export function AppSidebar({ collapsed, onCollapse }: AppSidebarProps) {
   const [location] = useLocation();
+  const [settingsOpen, setSettingsOpen] = useState(location.startsWith("/settings") || location === "/ayarlar");
+  const [adminOpen, setAdminOpen] = useState(location.startsWith("/admin"));
+
+  const isAdmin = currentUser.role === "admin" || currentUser.role === "superadmin";
 
   return (
     <aside
       className="fixed left-0 top-0 h-screen bg-[#0E1117] border-r border-[rgba(255,255,255,0.06)] flex flex-col transition-all duration-300 z-50"
-      style={{ width: collapsed ? "72px" : "200px" }}
+      style={{ width: collapsed ? "72px" : "220px" }}
     >
       {/* Logo */}
       <div className="p-4 border-b border-[rgba(255,255,255,0.06)] flex-shrink-0">
@@ -47,7 +83,7 @@ export function AppSidebar({ collapsed, onCollapse }: AppSidebarProps) {
           </div>
           {!collapsed && (
             <div className="overflow-hidden">
-              <h1 className="text-[15px] font-semibold text-[#F0F2F7] tracking-tight leading-tight">FinOS</h1>
+              <h1 className="text-lg font-semibold text-[#F0F2F7] tracking-tight leading-tight">FinOS</h1>
               <p className="text-[10px] text-[#4E5A6B] leading-tight">Yatırım Platformu</p>
             </div>
           )}
@@ -55,12 +91,15 @@ export function AppSidebar({ collapsed, onCollapse }: AppSidebarProps) {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
-        {navItems.map((item) => {
+      <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
+        {/* Main Nav Items */}
+        {mainNavItems.map((item) => {
           const isActive = location === item.href;
           const Icon = item.icon;
           return (
-            <Link key={item.href} href={item.href}
+            <Link
+              key={item.href}
+              href={item.href}
               className="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 relative group"
               style={{
                 background: isActive ? "rgba(0,212,170,0.08)" : "transparent",
@@ -90,6 +129,166 @@ export function AppSidebar({ collapsed, onCollapse }: AppSidebarProps) {
             </Link>
           );
         })}
+
+        {/* Settings with Sub Menu */}
+        <div>
+          <button
+            onClick={() => !collapsed && setSettingsOpen(!settingsOpen)}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 relative group"
+            style={{
+              background: location.startsWith("/settings") || location === "/ayarlar"
+                ? "rgba(0,212,170,0.08)"
+                : "transparent",
+              color: location.startsWith("/settings") || location === "/ayarlar"
+                ? "#00D4AA"
+                : "#8892A4",
+            }}
+            onMouseEnter={(e: React.MouseEvent<HTMLButtonElement>) => {
+              if (!(location.startsWith("/settings") || location === "/ayarlar")) {
+                (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.04)";
+                (e.currentTarget as HTMLElement).style.color = "#F0F2F7";
+              }
+            }}
+            onMouseLeave={(e: React.MouseEvent<HTMLButtonElement>) => {
+              if (!(location.startsWith("/settings") || location === "/ayarlar")) {
+                (e.currentTarget as HTMLElement).style.background = "transparent";
+                (e.currentTarget as HTMLElement).style.color = "#8892A4";
+              }
+            }}
+            data-testid="nav-settings"
+          >
+            {(location.startsWith("/settings") || location === "/ayarlar") && (
+              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 bg-[#00D4AA] rounded-r-full" />
+            )}
+            <Settings className="w-5 h-5 flex-shrink-0" />
+            {!collapsed && (
+              <>
+                <span className="text-sm font-medium truncate flex-1 text-left">Ayarlar</span>
+                <ChevronDown className={`w-4 h-4 transition-transform flex-shrink-0 ${settingsOpen ? "rotate-180" : ""}`} />
+              </>
+            )}
+          </button>
+
+          {/* Settings Sub Items */}
+          {!collapsed && settingsOpen && (
+            <div className="ml-4 mt-1 space-y-1 border-l border-[rgba(255,255,255,0.06)] pl-3">
+              {settingsSubItems.map((item) => {
+                const isActive = location === item.href;
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className="flex items-center gap-2 px-2 py-2 rounded-lg transition-all duration-200 text-xs"
+                    style={{
+                      background: isActive ? "rgba(0,212,170,0.08)" : "transparent",
+                      color: isActive ? "#00D4AA" : "#8892A4",
+                    }}
+                    onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => {
+                      if (!isActive) {
+                        (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.04)";
+                        (e.currentTarget as HTMLElement).style.color = "#F0F2F7";
+                      }
+                    }}
+                    onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => {
+                      if (!isActive) {
+                        (e.currentTarget as HTMLElement).style.background = "transparent";
+                        (e.currentTarget as HTMLElement).style.color = "#8892A4";
+                      }
+                    }}
+                  >
+                    <Icon className="w-4 h-4 flex-shrink-0" />
+                    <span className="truncate">{item.label}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Admin with Sub Menu - Only for Admins */}
+        {isAdmin && (
+          <div>
+            <button
+              onClick={() => !collapsed && setAdminOpen(!adminOpen)}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 relative group"
+              style={{
+                background: location.startsWith("/admin")
+                  ? "rgba(255,71,87,0.08)"
+                  : "transparent",
+                color: location.startsWith("/admin")
+                  ? "#FF4757"
+                  : "#8892A4",
+              }}
+              onMouseEnter={(e: React.MouseEvent<HTMLButtonElement>) => {
+                if (!location.startsWith("/admin")) {
+                  (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.04)";
+                  (e.currentTarget as HTMLElement).style.color = "#F0F2F7";
+                }
+              }}
+              onMouseLeave={(e: React.MouseEvent<HTMLButtonElement>) => {
+                if (!location.startsWith("/admin")) {
+                  (e.currentTarget as HTMLElement).style.background = "transparent";
+                  (e.currentTarget as HTMLElement).style.color = "#8892A4";
+                }
+              }}
+              data-testid="nav-admin"
+            >
+              {location.startsWith("/admin") && (
+                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 bg-[#FF4757] rounded-r-full" />
+              )}
+              <div className="relative">
+                <Shield className="w-5 h-5 flex-shrink-0" />
+                <span className="absolute -top-1 -right-1 w-2 h-2 bg-[#FF4757] rounded-full animate-pulse" />
+              </div>
+              {!collapsed && (
+                <>
+                  <span className="text-sm font-medium truncate flex-1 text-left">Admin</span>
+                  <span className="px-1.5 py-0.5 text-[9px] font-bold bg-[#FF4757] text-white rounded flex-shrink-0">
+                    ADMIN
+                  </span>
+                  <ChevronDown className={`w-4 h-4 transition-transform flex-shrink-0 ${adminOpen ? "rotate-180" : ""}`} />
+                </>
+              )}
+            </button>
+
+            {/* Admin Sub Items */}
+            {!collapsed && adminOpen && (
+              <div className="ml-4 mt-1 space-y-1 border-l border-[rgba(255,71,87,0.2)] pl-3">
+                {adminSubItems.map((item) => {
+                  const isActive = location === item.href;
+                  const Icon = item.icon;
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className="flex items-center gap-2 px-2 py-2 rounded-lg transition-all duration-200 text-xs"
+                      style={{
+                        background: isActive ? "rgba(255,71,87,0.08)" : "transparent",
+                        color: isActive ? "#FF4757" : "#8892A4",
+                      }}
+                      onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => {
+                        if (!isActive) {
+                          (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.04)";
+                          (e.currentTarget as HTMLElement).style.color = "#F0F2F7";
+                        }
+                      }}
+                      onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => {
+                        if (!isActive) {
+                          (e.currentTarget as HTMLElement).style.background = "transparent";
+                          (e.currentTarget as HTMLElement).style.color = "#8892A4";
+                        }
+                      }}
+                    >
+                      <Icon className="w-4 h-4 flex-shrink-0" />
+                      <span className="truncate">{item.label}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
       </nav>
 
       {/* User Profile */}

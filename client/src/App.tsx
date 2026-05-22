@@ -15,6 +15,7 @@ import Goals from "@/pages/hedefler";
 import Debts from "@/pages/borclar";
 import Simulator from "@/pages/simulator";
 import AICoach from "@/pages/ai-koc";
+import AdminPage from "@/pages/admin";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -29,6 +30,9 @@ function Router() {
       <Route path="/ai-koc" component={AICoach} />
       <Route path="/raporlar" component={Reports} />
       <Route path="/ayarlar" component={Settings} />
+      <Route path="/settings/*" component={Settings} />
+      <Route path="/admin" component={AdminPage} />
+      <Route path="/admin/*" component={AdminPage} />
       <Route component={NotFound} />
     </Switch>
   );
