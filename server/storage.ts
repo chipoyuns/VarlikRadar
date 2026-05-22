@@ -14,11 +14,14 @@ import {
   type BudgetSummary,
   type Goal,
   type InsertGoal,
+  type Debt,
+  type InsertDebt,
   assets,
   transactions,
   incomes,
   expenses,
-  goals
+  goals,
+  debts
 } from "@shared/schema";
 import { db } from "./db";
 import { fetchExchangeRates, toTRY } from "./services/exchangeRateService";
@@ -67,6 +70,13 @@ export interface IStorage {
   createGoal(goal: InsertGoal): Promise<Goal>;
   updateGoal(id: string, goal: Partial<InsertGoal>): Promise<Goal | undefined>;
   deleteGoal(id: string): Promise<boolean>;
+
+  // Debt operations
+  getDebts(): Promise<Debt[]>;
+  getDebt(id: string): Promise<Debt | undefined>;
+  createDebt(debt: InsertDebt): Promise<Debt>;
+  updateDebt(id: string, debt: Partial<InsertDebt>): Promise<Debt | undefined>;
+  deleteDebt(id: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -426,6 +436,31 @@ export class DatabaseStorage implements IStorage {
         percentage: totalExpense > 0 ? (amount / totalExpense) * 100 : 0,
       })),
     };
+  }
+
+  // Debt operations
+  async getDebts(): Promise<Debt[]> {
+    return await db.select().from(debts).orderBy(desc(debts.createdAt));
+  }
+
+  async getDebt(id: string): Promise<Debt | undefined> {
+    const [debt] = await db.select().from(debts).where(eq(debts.id, id));
+    return debt || undefined;
+  }
+
+  async createDebt(insertDebt: InsertDebt): Promise<Debt> {
+    const [debt] = await db.insert(debts).values(insertDebt).returning();
+    return debt;
+  }
+
+  async updateDebt(id: string, updateData: Partial<InsertDebt>): Promise<Debt | undefined> {
+    const [debt] = await db.update(debts).set(updateData).where(eq(debts.id, id)).returning();
+    return debt || undefined;
+  }
+
+  async deleteDebt(id: string): Promise<boolean> {
+    const result = await db.delete(debts).where(eq(debts.id, id));
+    return result.rowCount !== null && result.rowCount > 0;
   }
 
   // Goal operations

@@ -187,6 +187,31 @@ export const insertGoalSchema = createInsertSchema(goals).omit({
 export type InsertGoal = z.infer<typeof insertGoalSchema>;
 export type Goal = typeof goals.$inferSelect;
 
+// Borçlar tablosu
+export const debts = pgTable("debts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  type: text("type").notNull().default("loan"), // credit, auto, loan, personal, mortgage
+  emoji: text("emoji").notNull().default("💳"),
+  interestRate: decimal("interest_rate", { precision: 8, scale: 4 }).notNull().default("0"),
+  totalAmount: decimal("total_amount", { precision: 18, scale: 2 }).notNull(),
+  remainingAmount: decimal("remaining_amount", { precision: 18, scale: 2 }).notNull(),
+  monthlyPayment: decimal("monthly_payment", { precision: 18, scale: 2 }).notNull().default("0"),
+  dueDay: integer("due_day"),
+  endDate: text("end_date"),
+  notes: text("notes"),
+  color: text("color").notNull().default("#FF4757"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertDebtSchema = createInsertSchema(debts).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertDebt = z.infer<typeof insertDebtSchema>;
+export type Debt = typeof debts.$inferSelect;
+
 // Bütçe özeti tipi
 export type BudgetSummary = {
   totalIncome: number;

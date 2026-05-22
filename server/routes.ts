@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertAssetSchema, insertTransactionSchema, insertIncomeSchema, insertExpenseSchema, insertGoalSchema } from "@shared/schema";
+import { insertAssetSchema, insertTransactionSchema, insertIncomeSchema, insertExpenseSchema, insertGoalSchema, insertDebtSchema } from "@shared/schema";
 import { updateAllAssetPrices, fetchSingleAssetPrice, fetchExchangeRates } from "./services/priceService";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -401,6 +401,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Backup import error:", error);
       res.status(500).json({ error: "İçe aktarma sırasında hata oluştu" });
+    }
+  });
+
+  // Debt routes
+  app.get("/api/debts", async (req, res) => {
+    try {
+      const debtsList = await storage.getDebts();
+      res.json(debtsList);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch debts" });
+    }
+  });
+
+  app.post("/api/debts", async (req, res) => {
+    try {
+      const validated = insertDebtSchema.parse(req.body);
+      const debt = await storage.createDebt(validated);
+      res.status(201).json(debt);
+    } catch (error) {
+      res.status(400).json({ error: "Invalid debt data" });
+    }
+  });
+
+  app.patch("/api/debts/:id", async (req, res) => {
+    try {
+      const validated = insertDebtSchema.partial().parse(req.body);
+      const debt = await storage.updateDebt(req.params.id, validated);
+      if (!debt) return res.status(404).json({ error: "Debt not found" });
+      res.json(debt);
+    } catch (error) {
+      res.status(400).json({ error: "Invalid debt data" });
+    }
+  });
+
+  app.delete("/api/debts/:id", async (req, res) => {
+    try {
+      const deleted = await storage.deleteDebt(req.params.id);
+      if (!deleted) return res.status(404).json({ error: "Debt not found" });
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete debt" });
     }
   });
 
