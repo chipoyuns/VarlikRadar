@@ -2,6 +2,7 @@ import { useState } from "react";
 import {
   Settings as SettingsIcon, User, Bell, Shield, Palette, Globe, CreditCard, Link2,
   ChevronRight, Check, Moon, Sun, Monitor, Smartphone, Mail, Upload, Download,
+  TrendingUp, Trash2, AlertTriangle, Plus, X, Star, Crown, Zap,
 } from "lucide-react";
 import { useDisplayCurrency } from "@/lib/currency-context";
 import { exportBackupJSON, importBackupJSON } from "@/lib/export-utils";
@@ -12,11 +13,31 @@ import { useRef } from "react";
 const settingsSections = [
   { id: "profile", name: "Profil", icon: User },
   { id: "notifications", name: "Bildirimler", icon: Bell },
+  { id: "price_alerts", name: "Fiyat Alarmları", icon: AlertTriangle },
+  { id: "dca_plans", name: "DCA Planları", icon: TrendingUp },
   { id: "security", name: "Güvenlik", icon: Shield },
+  { id: "privacy", name: "Gizlilik", icon: Trash2 },
   { id: "appearance", name: "Görünüm", icon: Palette },
   { id: "language", name: "Dil ve Bölge", icon: Globe },
   { id: "billing", name: "Abonelik", icon: CreditCard },
   { id: "connections", name: "Bağlantılar", icon: Link2 },
+];
+
+const priceAlertsMock = [
+  { id: 1, asset: "THYAO.IS", condition: ">", target: "285,00", current: "248,50", active: true },
+  { id: 2, asset: "BTC/USDT", condition: "<", target: "850.000", current: "967.340", active: true },
+  { id: 3, asset: "GARAN.IS", condition: ">", target: "95,00", current: "87,20", active: false },
+];
+
+const dcaPlansMock = [
+  { id: 1, asset: "BTC", amount: "₺5.000", frequency: "Haftalık", nextDate: "28 Mayıs 2026", totalInvested: "₺125.000", status: "Aktif" },
+  { id: 2, asset: "THYAO.IS", amount: "₺2.500", frequency: "Aylık", nextDate: "1 Haziran 2026", totalInvested: "₺30.000", status: "Aktif" },
+];
+
+const privacySettings = [
+  { id: "hide_amounts", name: "Tutarları Gizle", description: "Ekran paylaşımında miktarları maskele", enabled: false },
+  { id: "blur_preview", name: "Önizleme Bulanıklığı", description: "Uygulama arka plandayken ekranı karart", enabled: true },
+  { id: "biometric_lock", name: "Biyometrik Kilit", description: "Hesap kilidi için parmak izi / yüz tanıma", enabled: true },
 ];
 
 const notificationSettings = [
@@ -41,8 +62,12 @@ export default function SettingsPage() {
     const map: Record<string, string> = {
       "/settings/gorunum": "appearance",
       "/settings/bildirimler": "notifications",
-      "/settings/gizlilik": "security",
+      "/settings/fiyat-alarmlari": "price_alerts",
+      "/settings/dca-planlari": "dca_plans",
+      "/settings/guvenlik": "security",
+      "/settings/gizlilik": "privacy",
       "/settings/bolgesel": "language",
+      "/settings/abonelik": "billing",
       "/settings/premium": "billing",
       "/settings/yedekleme": "connections",
     };
@@ -54,6 +79,9 @@ export default function SettingsPage() {
   const [language, setLanguage] = useState("tr");
   const [backupLoading, setBackupLoading] = useState(false);
   const [importLoading, setImportLoading] = useState(false);
+  const [alerts, setAlerts] = useState(priceAlertsMock);
+  const [dcaPlans, setDcaPlans] = useState(dcaPlansMock);
+  const [privacy, setPrivacy] = useState(privacySettings);
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -154,6 +182,116 @@ export default function SettingsPage() {
               </div>
               <div className="flex justify-end mt-6">
                 <button className="px-6 py-2 bg-[#00D4AA] rounded-lg text-sm font-medium text-[#080A0F] hover:bg-[#00D4AA]/90 transition-colors">Kaydet</button>
+              </div>
+            </div>
+          )}
+
+          {/* Price Alerts Section */}
+          {activeSection === "price_alerts" && (
+            <div className="finos-card p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-lg font-semibold text-[#F0F2F7]">Fiyat Alarmları</h2>
+                <button className="flex items-center gap-2 px-4 py-2 bg-[#00D4AA] text-[#080A0F] text-sm font-medium rounded-lg hover:bg-[#00D4AA]/90 transition-colors">
+                  <Plus className="w-4 h-4" /> Yeni Alarm
+                </button>
+              </div>
+              <div className="space-y-3">
+                {alerts.map((alert) => (
+                  <div key={alert.id} className="flex items-center justify-between p-4 bg-[#151A23] rounded-xl">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-xl bg-[rgba(0,212,170,0.1)] flex items-center justify-center">
+                        <AlertTriangle className="w-5 h-5 text-[#00D4AA]" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-semibold text-[#F0F2F7]">{alert.asset}</span>
+                          <span className="text-xs text-[#8892A4]">{alert.condition} {alert.target}</span>
+                        </div>
+                        <p className="text-xs text-[#4E5A6B] mt-0.5">Şu an: <span className="font-mono text-[#8892A4]">{alert.current}</span></p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className={`px-2 py-0.5 text-xs rounded ${alert.active ? 'bg-[rgba(0,212,170,0.15)] text-[#00D4AA]' : 'bg-[rgba(255,255,255,0.06)] text-[#4E5A6B]'}`}>
+                        {alert.active ? 'Aktif' : 'Pasif'}
+                      </span>
+                      <button className="text-[#FF4757] hover:bg-[rgba(255,71,87,0.1)] p-1.5 rounded-lg transition-colors">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 p-4 border border-dashed border-[rgba(255,255,255,0.1)] rounded-xl text-center">
+                <p className="text-sm text-[#8892A4]">Bir varlığın hedef fiyatına ulaştığında bildirim alın</p>
+              </div>
+            </div>
+          )}
+
+          {/* DCA Plans Section */}
+          {activeSection === "dca_plans" && (
+            <div className="finos-card p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-lg font-semibold text-[#F0F2F7]">Otomatik Yatırım Planları (DCA)</h2>
+                <button className="flex items-center gap-2 px-4 py-2 bg-[#00D4AA] text-[#080A0F] text-sm font-medium rounded-lg hover:bg-[#00D4AA]/90 transition-colors">
+                  <Plus className="w-4 h-4" /> Yeni Plan
+                </button>
+              </div>
+              <div className="space-y-3">
+                {dcaPlans.map((plan) => (
+                  <div key={plan.id} className="flex items-center justify-between p-4 bg-[#151A23] rounded-xl">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-xl bg-[rgba(0,212,170,0.1)] flex items-center justify-center">
+                        <TrendingUp className="w-5 h-5 text-[#00D4AA]" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-[#F0F2F7]">{plan.asset}</p>
+                        <div className="flex items-center gap-3 mt-0.5">
+                          <span className="text-xs text-[#8892A4]"><span className="font-mono text-[#00D4AA]">{plan.amount}</span> / {plan.frequency}</span>
+                          <span className="text-xs text-[#4E5A6B]">Sonraki: {plan.nextDate}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-mono font-semibold text-[#FFB833]">{plan.totalInvested}</p>
+                      <span className="text-xs text-[#00D4AA]">{plan.status}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Privacy Section */}
+          {activeSection === "privacy" && (
+            <div className="finos-card p-6">
+              <h2 className="text-lg font-semibold text-[#F0F2F7] mb-6">Gizlilik</h2>
+              <div className="space-y-4">
+                {privacy.map((item) => (
+                  <div key={item.id} className="flex items-center justify-between p-4 bg-[#151A23] rounded-xl">
+                    <div>
+                      <p className="text-sm font-medium text-[#F0F2F7]">{item.name}</p>
+                      <p className="text-xs text-[#4E5A6B]">{item.description}</p>
+                    </div>
+                    <button onClick={() => setPrivacy(privacy.map(p => p.id === item.id ? { ...p, enabled: !p.enabled } : p))}
+                      className={`w-12 h-6 rounded-full relative transition-colors ${item.enabled ? 'bg-[#00D4AA]' : 'bg-[#4E5A6B]'}`}>
+                      <span className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${item.enabled ? 'left-7' : 'left-1'}`} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-6 pt-6 border-t border-[rgba(255,255,255,0.06)]">
+                <h3 className="text-sm font-medium text-[#FF4757] mb-3">Tehlikeli Bölge</h3>
+                <div className="p-4 bg-[rgba(255,71,87,0.08)] border border-[rgba(255,71,87,0.2)] rounded-xl">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-[#FF4757]">Hesabı Kalıcı Olarak Sil</p>
+                      <p className="text-xs text-[#8892A4]">Tüm verileriniz silinecek. Bu işlem geri alınamaz.</p>
+                    </div>
+                    <button className="px-4 py-2 bg-[#FF4757] text-white text-sm rounded-lg hover:bg-[#e63e4d] transition-colors">
+                      Hesabı Sil
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -371,6 +509,52 @@ export default function SettingsPage() {
               <div className="flex items-center gap-4">
                 <button className="px-6 py-2 bg-[#151A23] border border-[rgba(255,255,255,0.06)] rounded-lg text-sm text-[#8892A4] hover:border-[rgba(255,255,255,0.1)] transition-colors">Plan Değiştir</button>
                 <button className="px-6 py-2 text-sm text-[#FF4757] hover:underline transition-colors">Aboneliği İptal Et</button>
+              </div>
+              {/* Plan Comparison */}
+              <div className="mt-6 pt-6 border-t border-[rgba(255,255,255,0.06)]">
+                <h3 className="text-sm font-medium text-[#F0F2F7] mb-4">Plan Karşılaştırma</h3>
+                <div className="grid grid-cols-3 gap-4">
+                  {/* Free Plan */}
+                  <div className="p-5 bg-[#151A23] border border-[rgba(255,255,255,0.06)] rounded-2xl">
+                    <p className="text-xl font-bold text-[#8892A4] mb-1">FREE</p>
+                    <p className="text-2xl font-mono font-bold text-[#F0F2F7] mb-4">₺0<span className="text-sm font-normal text-[#8892A4]">/ay</span></p>
+                    <ul className="space-y-2 mb-4">
+                      <li className="flex items-center gap-2 text-xs text-[#8892A4]"><Check className="w-3.5 h-3.5 text-[#00D4AA]" /> 5 varlık</li>
+                      <li className="flex items-center gap-2 text-xs text-[#8892A4]"><Check className="w-3.5 h-3.5 text-[#00D4AA]" /> 50 işlem/ay</li>
+                      <li className="flex items-center gap-2 text-xs text-[#8892A4]"><Check className="w-3.5 h-3.5 text-[#00D4AA]" /> 5 AI mesaj</li>
+                    </ul>
+                    <button className="w-full py-2 border border-[rgba(255,255,255,0.1)] text-[#8892A4] text-sm rounded-lg hover:bg-[rgba(255,255,255,0.04)] transition-colors">Mevcut</button>
+                  </div>
+                  {/* Premium Plan */}
+                  <div className="p-5 bg-[rgba(167,139,250,0.08)] border border-[#A78BFA]/30 rounded-2xl relative">
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-[#A78BFA] text-white text-xs font-bold rounded">EN POPULER</div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <Star className="w-5 h-5 text-[#A78BFA]" />
+                      <p className="text-xl font-bold text-[#A78BFA]">PREMIUM</p>
+                    </div>
+                    <p className="text-2xl font-mono font-bold text-[#F0F2F7] mb-4">₺149<span className="text-sm font-normal text-[#8892A4]">/ay</span></p>
+                    <ul className="space-y-2 mb-4">
+                      <li className="flex items-center gap-2 text-xs text-[#8892A4]"><Check className="w-3.5 h-3.5 text-[#00D4AA]" /> Sınırsız varlık</li>
+                      <li className="flex items-center gap-2 text-xs text-[#8892A4]"><Check className="w-3.5 h-3.5 text-[#00D4AA]" /> AI Koç</li>
+                      <li className="flex items-center gap-2 text-xs text-[#8892A4]"><Check className="w-3.5 h-3.5 text-[#00D4AA]" /> PDF Rapor</li>
+                    </ul>
+                    <button className="w-full py-2 bg-[#A78BFA] text-white text-sm rounded-lg hover:bg-[#9171e8] transition-colors">Yükselt</button>
+                  </div>
+                  {/* Pro Plan */}
+                  <div className="p-5 bg-[rgba(255,184,51,0.08)] border border-[#FFB833]/30 rounded-2xl">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Crown className="w-5 h-5 text-[#FFB833]" />
+                      <p className="text-xl font-bold text-[#FFB833]">PRO</p>
+                    </div>
+                    <p className="text-2xl font-mono font-bold text-[#F0F2F7] mb-4">₺299<span className="text-sm font-normal text-[#8892A4]">/ay</span></p>
+                    <ul className="space-y-2 mb-4">
+                      <li className="flex items-center gap-2 text-xs text-[#8892A4]"><Check className="w-3.5 h-3.5 text-[#00D4AA]" /> Vergi Raporu</li>
+                      <li className="flex items-center gap-2 text-xs text-[#8892A4]"><Check className="w-3.5 h-3.5 text-[#00D4AA]" /> API Erişimi</li>
+                      <li className="flex items-center gap-2 text-xs text-[#8892A4]"><Check className="w-3.5 h-3.5 text-[#00D4AA]" /> Öncelikli Destek</li>
+                    </ul>
+                    <button className="w-full py-2 bg-[#FFB833] text-[#080A0F] font-semibold text-sm rounded-lg hover:bg-[#e6a52e] transition-colors">Mevcut</button>
+                  </div>
+                </div>
               </div>
             </div>
           )}

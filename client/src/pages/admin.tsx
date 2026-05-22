@@ -649,6 +649,123 @@ function SubscriptionsTab() {
           </tbody>
         </table>
       </div>
+
+      {/* MRR Growth Chart */}
+      <div className="finos-card p-4">
+        <h3 className="text-sm font-medium text-[#F0F2F7] mb-4">MRR Gelisimi (Son 12 Ay)</h3>
+        <ResponsiveContainer width="100%" height={250}>
+          <AreaChart data={[
+            { ay: "Haz", free: 0, premium: 145000, pro: 65000 },
+            { ay: "Tem", free: 0, premium: 156000, pro: 72000 },
+            { ay: "Agu", free: 0, premium: 168000, pro: 78000 },
+            { ay: "Eyl", free: 0, premium: 175000, pro: 82000 },
+            { ay: "Eki", free: 0, premium: 182000, pro: 88000 },
+            { ay: "Kas", free: 0, premium: 190000, pro: 95000 },
+            { ay: "Ara", free: 0, premium: 198000, pro: 105000 },
+            { ay: "Oca", free: 0, premium: 204000, pro: 115000 },
+            { ay: "Sub", free: 0, premium: 208000, pro: 125000 },
+            { ay: "Mar", free: 0, premium: 212000, pro: 132000 },
+            { ay: "Nis", free: 0, premium: 216000, pro: 136000 },
+            { ay: "May", free: 0, premium: 216944, pro: 139633 },
+          ]}>
+            <CartesianGrid stroke="rgba(255,255,255,0.04)" />
+            <XAxis dataKey="ay" stroke="#4E5A6B" fontSize={12} />
+            <YAxis stroke="#4E5A6B" fontSize={12} tickFormatter={(v: number) => `${(v/1000)}K`} />
+            <Tooltip contentStyle={{ backgroundColor: '#151A23', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12 }} itemStyle={{ color: '#F0F2F7' }} />
+            <Area type="monotone" dataKey="premium" stackId="1" stroke="#A78BFA" fill="rgba(167,139,250,0.3)" name="Premium" />
+            <Area type="monotone" dataKey="pro" stackId="1" stroke="#FFB833" fill="rgba(255,184,51,0.3)" name="Pro" />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+
+      <div className="grid grid-cols-2 gap-6">
+        {/* Cohort Analysis */}
+        <div className="finos-card p-4">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-medium text-[#F0F2F7]">Kohort Analizi</h3>
+            <button className="text-xs text-[#FF4757] hover:underline">Kohort Raporu Indir</button>
+          </div>
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="border-b border-[rgba(255,255,255,0.06)]">
+                <th className="p-2 text-left text-[#8892A4]">Kayit Aki</th>
+                <th className="p-2 text-center text-[#8892A4]">M0</th>
+                <th className="p-2 text-center text-[#8892A4]">M1</th>
+                <th className="p-2 text-center text-[#8892A4]">M2</th>
+                <th className="p-2 text-center text-[#8892A4]">M3</th>
+                <th className="p-2 text-center text-[#8892A4]">M6</th>
+                <th className="p-2 text-center text-[#8892A4]">M12</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[
+                { ay: "Ocak 2026", m0: "100%", m1: "78%", m2: "65%", m3: "58%", m6: "48%", m12: "42%" },
+                { ay: "Subat 2026", m0: "100%", m1: "82%", m2: "71%", m3: "64%", m6: "52%", m12: "—" },
+                { ay: "Mart 2026", m0: "100%", m1: "85%", m2: "74%", m3: "68%", m6: "—", m12: "—" },
+                { ay: "Nisan 2026", m0: "100%", m1: "80%", m2: "69%", m3: "—", m6: "—", m12: "—" },
+                { ay: "Mayis 2026", m0: "100%", m1: "76%", m2: "—", m3: "—", m6: "—", m12: "—" },
+              ].map((row, i) => (
+                <tr key={i} className="border-b border-[rgba(255,255,255,0.04)]">
+                  <td className="p-2 text-[#8892A4]">{row.ay}</td>
+                  {["m0","m1","m2","m3","m6","m12"].map((k) => (
+                    <td key={k} className={`p-2 text-center font-mono ${
+                      row[k as keyof typeof row] === "—" ? "text-[#4E5A6B]" :
+                      parseInt(row[k as keyof typeof row] as string) >= 80 ? "text-[#00D4AA]" :
+                      parseInt(row[k as keyof typeof row] as string) >= 60 ? "text-[#A78BFA]" :
+                      parseInt(row[k as keyof typeof row] as string) >= 40 ? "text-[#FFB833]" : "text-[#FF4757]"
+                    }`}>{row[k as keyof typeof row]}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Churn Analysis */}
+        <div className="finos-card p-4">
+          <h3 className="text-sm font-medium text-[#F0F2F7] mb-4">Iptal Nedenleri</h3>
+          <div className="flex items-center justify-center mb-4">
+            <ResponsiveContainer width="100%" height={180}>
+              <PieChart>
+                <Pie data={[
+                  { name: "Cok pahali", value: 34, color: "#FF4757" },
+                  { name: "Ozellik kullanmadim", value: 28, color: "#FFB833" },
+                  { name: "Baska uygulama", value: 19, color: "#A78BFA" },
+                  { name: "Teknik sorun", value: 12, color: "#4B9EFF" },
+                  { name: "Diger", value: 7, color: "#8892A4" },
+                ]} cx="50%" cy="50%" innerRadius={50} outerRadius={80} dataKey="value" nameKey="name">
+                  {[
+                    { name: "Cok pahali", value: 34, color: "#FF4757" },
+                    { name: "Ozellik kullanmadim", value: 28, color: "#FFB833" },
+                    { name: "Baska uygulama", value: 19, color: "#A78BFA" },
+                    { name: "Teknik sorun", value: 12, color: "#4B9EFF" },
+                    { name: "Diger", value: 7, color: "#8892A4" },
+                  ].map((entry, index) => <Cell key={index} fill={entry.color} />)}
+                </Pie>
+                <Tooltip contentStyle={{ backgroundColor: '#151A23', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12 }} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="space-y-2">
+            {[
+              { label: "Cok pahali", pct: 34, color: "#FF4757" },
+              { label: "Ozellik kullanmadim", pct: 28, color: "#FFB833" },
+              { label: "Baska uygulama", pct: 19, color: "#A78BFA" },
+              { label: "Teknik sorun", pct: 12, color: "#4B9EFF" },
+              { label: "Diger", pct: 7, color: "#8892A4" },
+            ].map((r, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: r.color }} />
+                <span className="text-xs text-[#8892A4] flex-1">{r.label}</span>
+                <span className="text-xs font-mono text-[#F0F2F7]">%{r.pct}</span>
+              </div>
+            ))}
+          </div>
+          <div className="mt-3 p-2 bg-[rgba(255,184,51,0.08)] border border-[rgba(255,184,51,0.2)] rounded-lg">
+            <p className="text-xs text-[#FFB833]"><AlertTriangle className="w-3 h-3 inline mr-1" />Churn Riski Yuksek: <span className="font-mono font-semibold">234</span> kullanici</p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
