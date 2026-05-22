@@ -165,6 +165,28 @@ export const insertExpenseSchema = createInsertSchema(expenses, {
 export type InsertExpense = z.infer<typeof insertExpenseSchema>;
 export type Expense = typeof expenses.$inferSelect;
 
+// Hedefler tablosu
+export const goals = pgTable("goals", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: text("title").notNull(),
+  emoji: text("emoji").notNull().default("🎯"),
+  targetAmount: decimal("target_amount", { precision: 18, scale: 2 }).notNull(),
+  currentAmount: decimal("current_amount", { precision: 18, scale: 2 }).notNull().default("0"),
+  monthlyContribution: decimal("monthly_contribution", { precision: 18, scale: 2 }).notNull().default("0"),
+  targetDate: text("target_date"),
+  color: text("color").notNull().default("#00D4AA"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertGoalSchema = createInsertSchema(goals).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertGoal = z.infer<typeof insertGoalSchema>;
+export type Goal = typeof goals.$inferSelect;
+
 // Bütçe özeti tipi
 export type BudgetSummary = {
   totalIncome: number;

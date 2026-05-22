@@ -12,10 +12,13 @@ import {
   type Expense,
   type InsertExpense,
   type BudgetSummary,
+  type Goal,
+  type InsertGoal,
   assets,
   transactions,
   incomes,
-  expenses
+  expenses,
+  goals
 } from "@shared/schema";
 import { db } from "./db";
 import { fetchExchangeRates, toTRY } from "./services/exchangeRateService";
@@ -57,6 +60,13 @@ export interface IStorage {
   
   // Budget calculations
   getBudgetSummary(startDate?: Date, endDate?: Date): Promise<BudgetSummary>;
+
+  // Goal operations
+  getGoals(): Promise<Goal[]>;
+  getGoal(id: string): Promise<Goal | undefined>;
+  createGoal(goal: InsertGoal): Promise<Goal>;
+  updateGoal(id: string, goal: Partial<InsertGoal>): Promise<Goal | undefined>;
+  deleteGoal(id: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -416,6 +426,31 @@ export class DatabaseStorage implements IStorage {
         percentage: totalExpense > 0 ? (amount / totalExpense) * 100 : 0,
       })),
     };
+  }
+
+  // Goal operations
+  async getGoals(): Promise<Goal[]> {
+    return await db.select().from(goals).orderBy(desc(goals.createdAt));
+  }
+
+  async getGoal(id: string): Promise<Goal | undefined> {
+    const [goal] = await db.select().from(goals).where(eq(goals.id, id));
+    return goal || undefined;
+  }
+
+  async createGoal(insertGoal: InsertGoal): Promise<Goal> {
+    const [goal] = await db.insert(goals).values(insertGoal).returning();
+    return goal;
+  }
+
+  async updateGoal(id: string, updateData: Partial<InsertGoal>): Promise<Goal | undefined> {
+    const [goal] = await db.update(goals).set(updateData).where(eq(goals.id, id)).returning();
+    return goal || undefined;
+  }
+
+  async deleteGoal(id: string): Promise<boolean> {
+    const result = await db.delete(goals).where(eq(goals.id, id));
+    return result.rowCount !== null && result.rowCount > 0;
   }
 }
 

@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertAssetSchema, insertTransactionSchema, insertIncomeSchema, insertExpenseSchema } from "@shared/schema";
+import { insertAssetSchema, insertTransactionSchema, insertIncomeSchema, insertExpenseSchema, insertGoalSchema } from "@shared/schema";
 import { updateAllAssetPrices, fetchSingleAssetPrice, fetchExchangeRates } from "./services/priceService";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -401,6 +401,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Backup import error:", error);
       res.status(500).json({ error: "İçe aktarma sırasında hata oluştu" });
+    }
+  });
+
+  // Goals routes
+  app.get("/api/goals", async (req, res) => {
+    try {
+      const goalsList = await storage.getGoals();
+      res.json(goalsList);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch goals" });
+    }
+  });
+
+  app.post("/api/goals", async (req, res) => {
+    try {
+      const validated = insertGoalSchema.parse(req.body);
+      const goal = await storage.createGoal(validated);
+      res.status(201).json(goal);
+    } catch (error) {
+      res.status(400).json({ error: "Invalid goal data" });
+    }
+  });
+
+  app.patch("/api/goals/:id", async (req, res) => {
+    try {
+      const validated = insertGoalSchema.partial().parse(req.body);
+      const goal = await storage.updateGoal(req.params.id, validated);
+      if (!goal) return res.status(404).json({ error: "Goal not found" });
+      res.json(goal);
+    } catch (error) {
+      res.status(400).json({ error: "Invalid goal data" });
+    }
+  });
+
+  app.delete("/api/goals/:id", async (req, res) => {
+    try {
+      const deleted = await storage.deleteGoal(req.params.id);
+      if (!deleted) return res.status(404).json({ error: "Goal not found" });
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete goal" });
     }
   });
 
