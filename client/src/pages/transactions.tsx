@@ -1,8 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Plus, FileText, FileSpreadsheet } from "lucide-react";
+import { Plus, FileText, FileSpreadsheet, ArrowUpRight, ArrowDownRight, Search } from "lucide-react";
 import { useState } from "react";
 import { AddTransactionDialog } from "@/components/add-transaction-dialog";
 import { TransactionTable } from "@/components/transaction-table";
@@ -13,109 +10,98 @@ export default function Transactions() {
   const [isAddTransactionOpen, setIsAddTransactionOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
-  const { data: transactions, isLoading, error } = useQuery<Transaction[]>({
-    queryKey: ["/api/transactions"],
-  });
-
-  const { data: assets } = useQuery<Asset[]>({
-    queryKey: ["/api/assets"],
-  });
+  const { data: transactions, isLoading, error } = useQuery<Transaction[]>({ queryKey: ["/api/transactions"] });
+  const { data: assets } = useQuery<Asset[]>({ queryKey: ["/api/assets"] });
 
   const filteredTransactions = (transactions || []).filter((transaction) => {
     if (!searchTerm.trim()) return true;
     const asset = assets?.find((item) => item.id === transaction.assetId);
-    const haystack = [
-      transaction.assetId,
-      asset?.name,
-      asset?.symbol,
-      asset?.market,
-      transaction.type,
-      transaction.notes,
-    ]
-      .filter(Boolean)
-      .join(" ")
-      .toLowerCase();
-
+    const haystack = [transaction.assetId, asset?.name, asset?.symbol, asset?.market, transaction.type, transaction.notes]
+      .filter(Boolean).join(" ").toLowerCase();
     return haystack.includes(searchTerm.toLowerCase());
   });
 
+  const totalBuy = (transactions || []).filter(t => t.type === "buy").length;
+  const totalSell = (transactions || []).filter(t => t.type === "sell").length;
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      {/* Header */}
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-3xl font-semibold text-foreground" data-testid="heading-transactions">
-            İşlemler
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Alım ve satım işlemlerinizi görüntüleyin
-          </p>
+          <h1 className="text-2xl font-semibold text-[#F0F2F7]" data-testid="heading-transactions">İşlemler</h1>
+          <p className="text-sm text-[#8892A4] mt-1">Alım ve satım işlemlerinizi görüntüleyin</p>
         </div>
-        <Button onClick={() => setIsAddTransactionOpen(true)} data-testid="button-add-transaction">
-          <Plus className="h-4 w-4 mr-2" />
+        <button
+          onClick={() => setIsAddTransactionOpen(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-[#00D4AA] rounded-lg text-sm font-medium text-[#080A0F] hover:bg-[#00D4AA]/90 transition-colors"
+          data-testid="button-add-transaction"
+        >
+          <Plus className="h-4 w-4" />
           İşlem Ekle
-        </Button>
+        </button>
       </div>
 
-      <Card data-testid="card-transaction-history">
-        <CardHeader>
-          <div className="flex items-center justify-between gap-4 flex-wrap">
-            <CardTitle>İşlem Geçmişi</CardTitle>
-            <Input
-              placeholder="GARAN, BTC, ETH ara..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="max-w-xs"
-              data-testid="input-transaction-search"
-            />
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-4">
+        <div className="finos-card p-4">
+          <p className="text-xs text-[#8892A4] mb-1">Toplam İşlem</p>
+          <p className="text-2xl font-bold font-mono text-[#F0F2F7]">{(transactions || []).length}</p>
+        </div>
+        <div className="finos-card p-4">
+          <p className="text-xs text-[#8892A4] mb-1 flex items-center gap-1">
+            <ArrowUpRight className="h-3 w-3 text-[#00D4AA]" /> Alım
+          </p>
+          <p className="text-2xl font-bold font-mono text-[#00D4AA]">{totalBuy}</p>
+        </div>
+        <div className="finos-card p-4">
+          <p className="text-xs text-[#8892A4] mb-1 flex items-center gap-1">
+            <ArrowDownRight className="h-3 w-3 text-[#FF4757]" /> Satım
+          </p>
+          <p className="text-2xl font-bold font-mono text-[#FF4757]">{totalSell}</p>
+        </div>
+      </div>
+
+      {/* Table Card */}
+      <div className="finos-card p-5" data-testid="card-transaction-history">
+        <div className="flex items-center justify-between gap-4 flex-wrap mb-4">
+          <h3 className="text-sm font-semibold text-[#F0F2F7]">İşlem Geçmişi</h3>
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#4E5A6B]" />
+              <input
+                placeholder="GARAN, BTC, ETH ara..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9 pr-3 py-2 bg-[#151A23] border border-[rgba(255,255,255,0.06)] rounded-lg text-sm text-[#F0F2F7] placeholder:text-[#4E5A6B] focus:outline-none focus:border-[#00D4AA] transition-colors w-48"
+                data-testid="input-transaction-search"
+              />
+            </div>
+            {(transactions || []).length > 0 && (
+              <>
+                <button onClick={() => exportTransactionsToPDF(filteredTransactions, assets || [])} className="flex items-center gap-1.5 px-3 py-2 bg-[#151A23] border border-[rgba(255,255,255,0.06)] rounded-lg text-xs text-[#8892A4] hover:text-[#F0F2F7] transition-colors" data-testid="button-transactions-export-pdf">
+                  <FileText className="h-3.5 w-3.5" /> PDF
+                </button>
+                <button onClick={() => exportTransactionsToExcel(filteredTransactions, assets || [])} className="flex items-center gap-1.5 px-3 py-2 bg-[#151A23] border border-[rgba(255,255,255,0.06)] rounded-lg text-xs text-[#8892A4] hover:text-[#F0F2F7] transition-colors" data-testid="button-transactions-export-excel">
+                  <FileSpreadsheet className="h-3.5 w-3.5" /> Excel
+                </button>
+              </>
+            )}
           </div>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="space-y-3">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="h-12 w-full bg-muted animate-pulse rounded" />
-              ))}
-            </div>
-          ) : error ? (
-            <div className="text-center py-12 text-destructive">
-              İşlemler yüklenirken bir hata oluştu
-            </div>
-          ) : (
-            <TransactionTable transactions={filteredTransactions} assets={assets || []} />
-          )}
+        </div>
 
-          {!isLoading && !error && (transactions || []).length > 0 && (
-            <div className="flex items-center justify-end gap-2 mt-4 pt-4 border-t border-border">
-              <span className="text-xs text-muted-foreground mr-2">Dışa Aktar:</span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => exportTransactionsToPDF(filteredTransactions, assets || [])}
-                data-testid="button-transactions-export-pdf"
-              >
-                <FileText className="h-4 w-4 mr-1.5" />
-                PDF
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => exportTransactionsToExcel(filteredTransactions, assets || [])}
-                data-testid="button-transactions-export-excel"
-              >
-                <FileSpreadsheet className="h-4 w-4 mr-1.5" />
-                Excel
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+        {isLoading ? (
+          <div className="space-y-3">
+            {[1,2,3,4,5].map(i => <div key={i} className="h-12 skeleton-shimmer" />)}
+          </div>
+        ) : error ? (
+          <div className="text-center py-12 text-[#FF4757] text-sm">İşlemler yüklenirken bir hata oluştu</div>
+        ) : (
+          <TransactionTable transactions={filteredTransactions} assets={assets || []} />
+        )}
+      </div>
 
-      <AddTransactionDialog
-        open={isAddTransactionOpen}
-        onOpenChange={setIsAddTransactionOpen}
-      />
+      <AddTransactionDialog open={isAddTransactionOpen} onOpenChange={setIsAddTransactionOpen} />
     </div>
   );
 }
-
-// test commit

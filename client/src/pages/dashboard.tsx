@@ -1,13 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Plus, TrendingUp, TrendingDown, RefreshCw, Eye, EyeOff,
-  Shield, Bitcoin, BarChart3, ArrowUpRight, ArrowDownRight,
-  Flame, AlertTriangle, CheckCircle, Activity, FileText, FileSpreadsheet
-} from "lucide-react";
+import { Plus, RefreshCw, Eye, EyeOff, Shield, Bitcoin, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, BarChart3, FileText, FileSpreadsheet } from "lucide-react";
 import { useState, useMemo } from "react";
 import { exportAssetsToPDF, exportAssetsToExcel } from "@/lib/export-utils";
 import type { BudgetSummary } from "@shared/schema";
@@ -25,15 +17,14 @@ function Sparkline({ data, positive }: { data: number[]; positive: boolean }) {
   const min = Math.min(...data);
   const max = Math.max(...data);
   const range = max - min || 1;
-  const w = 80;
-  const h = 28;
+  const w = 80, h = 28;
   const points = data.map((v, i) => {
     const x = (i / (data.length - 1)) * w;
     const y = h - ((v - min) / range) * h;
     return `${x},${y}`;
   });
-  const color = positive ? "hsl(158 84% 39%)" : "hsl(0 84% 60%)";
-  const fillColor = positive ? "hsl(158 84% 39% / 0.15)" : "hsl(0 84% 60% / 0.15)";
+  const color = positive ? "#00D4AA" : "#FF4757";
+  const fillColor = positive ? "rgba(0,212,170,0.12)" : "rgba(255,71,87,0.12)";
   const pathD = `M${points.join(" L")}`;
   const areaD = `M0,${h} L${pathD.slice(1)} L${w},${h} Z`;
   return (
@@ -47,8 +38,17 @@ function Sparkline({ data, positive }: { data: number[]; positive: boolean }) {
 function PrivacyValue({ value, hidden, className = "" }: { value: string; hidden: boolean; className?: string }) {
   return (
     <span className={className}>
-      {hidden ? <span className="tracking-widest text-muted-foreground">••••• ₺</span> : value}
+      {hidden ? <span className="tracking-widest text-[#4E5A6B]">••••• ₺</span> : value}
     </span>
+  );
+}
+
+function StatSkeleton() {
+  return (
+    <div className="space-y-2">
+      <div className="h-8 w-40 skeleton-shimmer" />
+      <div className="h-4 w-28 skeleton-shimmer" />
+    </div>
   );
 }
 
@@ -61,494 +61,324 @@ export default function Dashboard() {
   const { toast } = useToast();
   const { formatDisplayCurrency, displayCurrency, isLoadingRates } = useDisplayCurrency();
 
-  const { data: summary, isLoading: summaryLoading } = useQuery<PortfolioSummary>({
-    queryKey: ["/api/portfolio/summary"],
-  });
-
-  const { data: assets, isLoading: assetsLoading, error: assetsError } = useQuery<AssetDetail[]>({
-    queryKey: ["/api/portfolio/details"],
-  });
-
-  const { data: allocation, isLoading: allocationLoading, error: allocationError } = useQuery<AssetAllocation[]>({
-    queryKey: ["/api/portfolio/allocation"],
-  });
-
-  const { data: performance, isLoading: performanceLoading, error: performanceError } = useQuery<MonthlyPerformance[]>({
-    queryKey: [`/api/portfolio/performance?period=${perfPeriod}`],
-  });
-
-  const { data: budgetSummary } = useQuery<BudgetSummary>({
-    queryKey: ["/api/budget/summary"],
-  });
+  const { data: summary, isLoading: summaryLoading } = useQuery<PortfolioSummary>({ queryKey: ["/api/portfolio/summary"] });
+  const { data: assets, isLoading: assetsLoading } = useQuery<AssetDetail[]>({ queryKey: ["/api/portfolio/details"] });
+  const { data: allocation, isLoading: allocationLoading } = useQuery<AssetAllocation[]>({ queryKey: ["/api/portfolio/allocation"] });
+  const { data: performance, isLoading: performanceLoading } = useQuery<MonthlyPerformance[]>({ queryKey: [`/api/portfolio/performance?period=${perfPeriod}`] });
+  const { data: budgetSummary } = useQuery<BudgetSummary>({ queryKey: ["/api/budget/summary"] });
 
   const updatePricesMutation = useMutation({
-    mutationFn: async () => {
-      const response = await apiRequest("POST", "/api/prices/update");
-      return response.json();
-    },
+    mutationFn: async () => { const r = await apiRequest("POST", "/api/prices/update"); return r.json(); },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/portfolio/summary"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/portfolio/details"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/portfolio/allocation"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/portfolio/performance"] });
+      ["summary","details","allocation","performance"].forEach(k => queryClient.invalidateQueries({ queryKey: [`/api/portfolio/${k}`] }));
       queryClient.invalidateQueries({ queryKey: ["/api/assets"] });
       setLastUpdate(new Date().toLocaleTimeString("tr-TR"));
       toast({ title: "Fiyatlar Güncellendi", description: data.message });
     },
-    onError: () => {
-      toast({ title: "Hata", description: "Fiyatlar güncellenirken bir hata oluştu", variant: "destructive" });
-    },
+    onError: () => toast({ title: "Hata", description: "Fiyatlar güncellenirken hata oluştu", variant: "destructive" }),
   });
 
-  const formatCurrency = (amount: number) => formatDisplayCurrency(amount);
-  const formatPercent = (p: number) => `${p >= 0 ? "+" : ""}${p.toFixed(2)}%`;
+  const fmt = (amount: number) => formatDisplayCurrency(amount);
+  const fmtPct = (p: number) => `${p >= 0 ? "+" : ""}${p.toFixed(2)}%`;
 
-  const profitTRY = (asset: AssetDetail) => {
-    if (!asset.change || Math.abs(asset.change) < 0.0001) return 0;
-    return asset.totalValueTRY * (asset.change / 100) / (1 + asset.change / 100);
+  const profitTRY = (a: AssetDetail) => {
+    if (!a.change || Math.abs(a.change) < 0.0001) return 0;
+    return a.totalValueTRY * (a.change / 100) / (1 + a.change / 100);
   };
 
   const { nonCryptoAssets, cryptoAssets, nonCryptoPnLTRY, cryptoPnLTRY,
     nonCryptoPnLPct, cryptoPnLPct, bestNonCrypto, bestCrypto, worstAsset,
-    cryptoWeight, riskScore, riskLabel, riskColor, volatility,
+    cryptoWeight, riskScore, riskLabel, riskColor, riskHex, volatility,
     topConcentration, sparklineData } = useMemo(() => {
     const all = assets || [];
     const nonCrypto = all.filter(a => a.type !== "kripto");
     const crypto = all.filter(a => a.type === "kripto");
-
-    const sumProfitTRY = (list: AssetDetail[]) =>
-      list.reduce((s, a) => s + profitTRY(a), 0);
-    const sumValueTRY = (list: AssetDetail[]) =>
-      list.reduce((s, a) => s + a.totalValueTRY, 0);
-
-    const ncPnL = sumProfitTRY(nonCrypto);
-    const cPnL = sumProfitTRY(crypto);
-    const ncVal = sumValueTRY(nonCrypto);
-    const cVal = sumValueTRY(crypto);
-    const totalVal = sumValueTRY(all);
-
+    const sumPnl = (list: AssetDetail[]) => list.reduce((s, a) => s + profitTRY(a), 0);
+    const sumVal = (list: AssetDetail[]) => list.reduce((s, a) => s + a.totalValueTRY, 0);
+    const ncPnL = sumPnl(nonCrypto), cPnL = sumPnl(crypto);
+    const ncVal = sumVal(nonCrypto), cVal = sumVal(crypto), totalVal = sumVal(all);
     const ncPct = ncVal > 0 ? (ncPnL / (ncVal - ncPnL)) * 100 : 0;
     const cPct = cVal > 0 ? (cPnL / (cVal - cPnL)) * 100 : 0;
-
-    const bestNC = nonCrypto.length > 0
-      ? nonCrypto.reduce((a, b) => a.change > b.change ? a : b)
-      : null;
-    const bestC = crypto.length > 0
-      ? crypto.reduce((a, b) => a.change > b.change ? a : b)
-      : null;
-    const worst = all.length > 0
-      ? all.reduce((a, b) => a.change < b.change ? a : b)
-      : null;
-
+    const bestNC = nonCrypto.length > 0 ? nonCrypto.reduce((a, b) => a.change > b.change ? a : b) : null;
+    const bestC = crypto.length > 0 ? crypto.reduce((a, b) => a.change > b.change ? a : b) : null;
+    const worst = all.length > 0 ? all.reduce((a, b) => a.change < b.change ? a : b) : null;
     const cryptoAlloc = allocation?.find(a => a.type === "kripto");
     const cryptoW = cryptoAlloc?.percentage || 0;
-
     const changes = all.map(a => Math.abs(a.change));
-    const avgChange = changes.length > 0 ? changes.reduce((s, v) => s + v, 0) / changes.length : 0;
-    const vol = avgChange;
-
+    const vol = changes.length > 0 ? changes.reduce((s, v) => s + v, 0) / changes.length : 0;
     let score = 1;
-    if (cryptoW < 10) score = 2;
-    else if (cryptoW < 20) score = 3;
-    else if (cryptoW < 30) score = 4;
-    else if (cryptoW < 40) score = 5;
-    else if (cryptoW < 50) score = 6;
-    else if (cryptoW < 60) score = 7;
-    else if (cryptoW < 75) score = 8;
-    else if (cryptoW < 90) score = 9;
+    if (cryptoW < 10) score = 2; else if (cryptoW < 20) score = 3;
+    else if (cryptoW < 30) score = 4; else if (cryptoW < 40) score = 5;
+    else if (cryptoW < 50) score = 6; else if (cryptoW < 60) score = 7;
+    else if (cryptoW < 75) score = 8; else if (cryptoW < 90) score = 9;
     else score = 10;
     if (vol > 15) score = Math.min(10, score + 1);
-
-    let label = "Düşük Risk";
-    let color = "success";
-    if (score >= 7) { label = "Agresif"; color = "destructive"; }
-    else if (score >= 5) { label = "Yüksek"; color = "warning"; }
-    else if (score >= 3) { label = "Orta Risk"; color = "warning"; }
-
-    const topAsset = all.length > 0
-      ? all.reduce((a, b) => a.totalValueTRY > b.totalValueTRY ? a : b)
-      : null;
-    const topConc = totalVal > 0 && topAsset
-      ? (topAsset.totalValueTRY / totalVal) * 100
-      : 0;
-
+    let label = "Düşük Risk", color = "green", hex = "#00D4AA";
+    if (score >= 7) { label = "Agresif"; color = "red"; hex = "#FF4757"; }
+    else if (score >= 5) { label = "Yüksek"; color = "yellow"; hex = "#FFB833"; }
+    else if (score >= 3) { label = "Orta Risk"; color = "yellow"; hex = "#FFB833"; }
+    const topAsset = all.length > 0 ? all.reduce((a, b) => a.totalValueTRY > b.totalValueTRY ? a : b) : null;
+    const topConc = totalVal > 0 && topAsset ? (topAsset.totalValueTRY / totalVal) * 100 : 0;
     const sparkData = (performance || []).map(p => p.value).slice(-12);
-
-    return {
-      nonCryptoAssets: nonCrypto,
-      cryptoAssets: crypto,
-      nonCryptoPnLTRY: ncPnL,
-      cryptoPnLTRY: cPnL,
-      nonCryptoPnLPct: ncPct,
-      cryptoPnLPct: cPct,
-      bestNonCrypto: bestNC,
-      bestCrypto: bestC,
-      worstAsset: worst,
-      cryptoWeight: cryptoW,
-      riskScore: score,
-      riskLabel: label,
-      riskColor: color,
-      volatility: vol,
-      topConcentration: topConc,
-      sparklineData: sparkData,
-    };
+    return { nonCryptoAssets: nonCrypto, cryptoAssets: crypto, nonCryptoPnLTRY: ncPnL, cryptoPnLTRY: cPnL,
+      nonCryptoPnLPct: ncPct, cryptoPnLPct: cPct, bestNonCrypto: bestNC, bestCrypto: bestC,
+      worstAsset: worst, cryptoWeight: cryptoW, riskScore: score, riskLabel: label, riskColor: color,
+      riskHex: hex, volatility: vol, topConcentration: topConc, sparklineData: sparkData };
   }, [assets, allocation, performance]);
 
   const insights = useMemo(() => {
     const all = assets || [];
     const msgs: string[] = [];
-
     const roi = summary?.monthlyChange || 0;
-    if (roi > 5) msgs.push(`Portföy toplam +${roi.toFixed(1)}% getiri sağladı`);
-    else if (roi < -5) msgs.push(`Portföy toplam ${roi.toFixed(1)}% kayıpla karşılaştı`);
-    else msgs.push(`Portföy toplam ${roi >= 0 ? "+" : ""}${roi.toFixed(1)}% getiri sağladı`);
-
+    msgs.push(`Portföy toplam ${roi >= 0 ? "+" : ""}${roi.toFixed(1)}% getiri sağladı`);
     if (cryptoWeight > 50) msgs.push(`Kripto ağırlığı yüksek: %${cryptoWeight.toFixed(0)} — risk artışına dikkat`);
     else if (cryptoWeight > 0) msgs.push(`Kripto ağırlığı: %${cryptoWeight.toFixed(0)}`);
-
-    if (bestNonCrypto && bestNonCrypto.change > 0)
-      msgs.push(`En iyi hisse performansı: ${bestNonCrypto.symbol} +${bestNonCrypto.change.toFixed(1)}%`);
-    if (bestCrypto && bestCrypto.change > 0)
-      msgs.push(`En iyi kripto performansı: ${bestCrypto.symbol} +${bestCrypto.change.toFixed(1)}%`);
-    if (worstAsset && worstAsset.change < -2)
-      msgs.push(`En büyük düşüş: ${worstAsset.symbol} ${worstAsset.change.toFixed(1)}%`);
-
+    if (bestNonCrypto && bestNonCrypto.change > 0) msgs.push(`En iyi hisse: ${bestNonCrypto.symbol} +${bestNonCrypto.change.toFixed(1)}%`);
+    if (bestCrypto && bestCrypto.change > 0) msgs.push(`En iyi kripto: ${bestCrypto.symbol} +${bestCrypto.change.toFixed(1)}%`);
+    if (worstAsset && worstAsset.change < -2) msgs.push(`En büyük düşüş: ${worstAsset.symbol} ${worstAsset.change.toFixed(1)}%`);
     if (all.length === 0) msgs.push("Varlık eklemeye başlayın — yatırım portföyünüzü buradan yönetin");
-
-    if (topConcentration > 60)
-      msgs.push(`Konsantrasyon riski: En büyük varlık portföyün %${topConcentration.toFixed(0)}'ını oluşturuyor`);
-    else if (topConcentration > 0)
-      msgs.push(`En büyük pozisyon portföyün %${topConcentration.toFixed(0)}'ını oluşturuyor`);
-
-    if (nonCryptoPnLTRY > 0) msgs.push(`Hisse/ETF günlük kâr: +${formatCurrency(nonCryptoPnLTRY)}`);
-    if (cryptoPnLTRY > 0) msgs.push(`Kripto günlük kâr: +${formatCurrency(cryptoPnLTRY)}`);
-
     msgs.push(`Toplam ${all.length} varlık izleniyor`);
-    if (riskScore <= 3) msgs.push("Portföy düşük risk profilinde seyrediyor");
-    else if (riskScore >= 8) msgs.push("Yüksek risk profili — portföy çeşitlendirmesi önerilebilir");
-
+    if (nonCryptoPnLTRY > 0) msgs.push(`Hisse/ETF günlük kâr: +${fmt(nonCryptoPnLTRY)}`);
+    if (cryptoPnLTRY > 0) msgs.push(`Kripto günlük kâr: +${fmt(cryptoPnLTRY)}`);
     return msgs.length > 0 ? msgs : ["Portföy verilerini yükleyin"];
-  }, [assets, summary, bestNonCrypto, bestCrypto, worstAsset, cryptoWeight, riskScore, nonCryptoPnLTRY, cryptoPnLTRY, topConcentration]);
+  }, [assets, summary, bestNonCrypto, bestCrypto, worstAsset, cryptoWeight, nonCryptoPnLTRY, cryptoPnLTRY]);
 
   const isLoading = summaryLoading || assetsLoading;
+  const filteredAssets = (assets || []).filter(a =>
+    !assetSearch || a.name?.toLowerCase().includes(assetSearch.toLowerCase()) || a.symbol?.toLowerCase().includes(assetSearch.toLowerCase())
+  );
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-semibold text-foreground" data-testid="heading-portfolio">
-              Portföyüm
-            </h1>
+            <h1 className="text-2xl font-semibold text-[#F0F2F7]" data-testid="heading-portfolio">Portföyüm</h1>
             <button
               onClick={() => setPrivacyMode(v => !v)}
-              className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
-              title={privacyMode ? "Rakamları göster" : "Rakamları gizle"}
+              className="p-1.5 rounded-lg hover:bg-[rgba(255,255,255,0.04)] transition-colors text-[#4E5A6B] hover:text-[#F0F2F7]"
               data-testid="button-privacy-toggle"
             >
-              {privacyMode ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+              {privacyMode ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
           </div>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-sm text-[#8892A4] mt-1">
             Yatırımlarınızı tek platformda yönetin
-            {lastUpdate && <span className="ml-2 text-xs">(Son güncelleme: {lastUpdate})</span>}
+            {lastUpdate && <span className="ml-2 text-xs text-[#4E5A6B]">(Son güncelleme: {lastUpdate})</span>}
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
+          <button
             onClick={() => updatePricesMutation.mutate()}
             disabled={updatePricesMutation.isPending}
+            className="flex items-center gap-2 px-4 py-2 bg-[#151A23] border border-[rgba(255,255,255,0.06)] rounded-lg text-sm text-[#8892A4] hover:border-[rgba(255,255,255,0.1)] hover:text-[#F0F2F7] transition-all disabled:opacity-50"
             data-testid="button-refresh-prices"
           >
-            <RefreshCw className={`h-4 w-4 mr-2 ${updatePricesMutation.isPending ? "animate-spin" : ""}`} />
+            <RefreshCw className={`h-4 w-4 ${updatePricesMutation.isPending ? "animate-spin" : ""}`} />
             {updatePricesMutation.isPending ? "Güncelleniyor..." : "Fiyatları Güncelle"}
-          </Button>
-          <Button onClick={() => setIsAddAssetOpen(true)} data-testid="button-add-asset">
-            <Plus className="h-4 w-4 mr-2" />
+          </button>
+          <button
+            onClick={() => setIsAddAssetOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-[#00D4AA] rounded-lg text-sm font-medium text-[#080A0F] hover:bg-[#00D4AA]/90 transition-colors"
+            data-testid="button-add-asset"
+          >
+            <Plus className="h-4 w-4" />
             Varlık Ekle
-          </Button>
+          </button>
         </div>
       </div>
 
+      {/* Top Cards */}
       <div className="grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-4">
-        <div className="gradient-border-card hover-glow glass-card md:col-span-2">
-          <div className="bg-card rounded-[calc(var(--radius)+1px)] p-5 h-full" style={{ background: "linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--primary)/0.06) 100%)" }}>
-            <div className="flex items-start justify-between mb-3">
-              <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Net Varlık</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Toplam portföy değeri</p>
-              </div>
-              <div className="flex items-center gap-1.5 bg-primary/10 rounded-full px-2.5 py-1">
-                <BarChart3 className="h-3.5 w-3.5 text-primary" />
-                <span className="text-xs font-medium text-primary">Portföy</span>
-              </div>
+        {/* Net Varlık */}
+        <div className="finos-card p-5 md:col-span-2 hover-glow gradient-border-card">
+          <div className="flex items-start justify-between mb-3">
+            <div>
+              <p className="text-xs font-medium text-[#8892A4] uppercase tracking-wider">Net Varlık</p>
+              <p className="text-xs text-[#4E5A6B] mt-0.5">Toplam portföy değeri</p>
             </div>
-
-            {isLoading ? (
-              <div className="space-y-2">
-                <div className="h-10 w-48 bg-muted animate-pulse rounded" />
-                <div className="h-5 w-32 bg-muted animate-pulse rounded" />
-              </div>
-            ) : (
-              <>
-                <div className="count-animate">
-                  <PrivacyValue
-                    value={formatCurrency(summary?.netWorth || 0)}
-                    hidden={privacyMode}
-                    className="text-4xl font-bold text-foreground tracking-tight"
-                  />
-                </div>
-
-                <div className="flex flex-wrap items-center gap-3 mt-3">
-                  {summary && (
-                    <div className={`flex items-center gap-1 text-sm font-medium ${(summary.monthlyChangeAmount || 0) >= 0 ? "text-success" : "text-destructive"}`}>
-                      {(summary.monthlyChangeAmount || 0) >= 0
-                        ? <ArrowUpRight className="h-4 w-4" />
-                        : <ArrowDownRight className="h-4 w-4" />}
-                      <PrivacyValue
-                        value={`${(summary.monthlyChangeAmount || 0) >= 0 ? "+" : ""}${formatCurrency(summary.monthlyChangeAmount || 0)} toplam`}
-                        hidden={privacyMode}
-                      />
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex flex-wrap gap-4 mt-4 pt-4 border-t border-border/50">
-                  <div>
-                    <p className="text-xs text-muted-foreground">Toplam ROI</p>
-                    <p className={`text-sm font-semibold ${(summary?.monthlyChange || 0) >= 0 ? "text-success" : "text-destructive"}`}>
-                      {privacyMode ? "••%" : formatPercent(summary?.monthlyChange || 0)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Toplam Varlık</p>
-                    <PrivacyValue
-                      value={formatCurrency(summary?.totalAssets || 0)}
-                      hidden={privacyMode}
-                      className="text-sm font-semibold text-foreground"
-                    />
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Toplam Borç</p>
-                    <PrivacyValue
-                      value={formatCurrency(summary?.totalDebt || 0)}
-                      hidden={privacyMode}
-                      className="text-sm font-semibold text-foreground"
-                    />
-                  </div>
-                  <div className="ml-auto">
-                    <Sparkline data={sparklineData} positive={(summary?.monthlyChange || 0) >= 0} />
-                  </div>
-                </div>
-              </>
-            )}
+            <div className="flex items-center gap-1.5 bg-[rgba(0,212,170,0.1)] rounded-full px-2.5 py-1">
+              <BarChart3 className="h-3.5 w-3.5 text-[#00D4AA]" />
+              <span className="text-xs font-medium text-[#00D4AA]">Portföy</span>
+            </div>
           </div>
+          {isLoading ? <StatSkeleton /> : (
+            <>
+              <div className="count-animate">
+                <PrivacyValue value={fmt(summary?.netWorth || 0)} hidden={privacyMode}
+                  className="text-4xl font-bold text-[#F0F2F7] tracking-tight font-mono" />
+              </div>
+              <div className="flex flex-wrap items-center gap-3 mt-3">
+                {summary && (
+                  <div className={`flex items-center gap-1 text-sm font-medium ${(summary.monthlyChangeAmount || 0) >= 0 ? "text-[#00D4AA]" : "text-[#FF4757]"}`}>
+                    {(summary.monthlyChangeAmount || 0) >= 0 ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownRight className="h-4 w-4" />}
+                    <PrivacyValue value={`${(summary.monthlyChangeAmount || 0) >= 0 ? "+" : ""}${fmt(summary.monthlyChangeAmount || 0)} toplam`} hidden={privacyMode} />
+                  </div>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-4 mt-4 pt-4 border-t border-[rgba(255,255,255,0.06)]">
+                <div>
+                  <p className="text-xs text-[#4E5A6B]">Toplam ROI</p>
+                  <p className={`text-sm font-semibold font-mono ${(summary?.monthlyChange || 0) >= 0 ? "text-[#00D4AA]" : "text-[#FF4757]"}`}>
+                    {privacyMode ? "••%" : fmtPct(summary?.monthlyChange || 0)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-[#4E5A6B]">Toplam Varlık</p>
+                  <PrivacyValue value={fmt(summary?.totalAssets || 0)} hidden={privacyMode} className="text-sm font-semibold text-[#F0F2F7] font-mono" />
+                </div>
+                <div>
+                  <p className="text-xs text-[#4E5A6B]">Toplam Borç</p>
+                  <PrivacyValue value={fmt(summary?.totalDebt || 0)} hidden={privacyMode} className="text-sm font-semibold text-[#F0F2F7] font-mono" />
+                </div>
+                <div className="ml-auto">
+                  <Sparkline data={sparklineData} positive={(summary?.monthlyChange || 0) >= 0} />
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
-        <div className={`gradient-border-card glass-card ${nonCryptoPnLTRY >= 0 ? "gradient-border-success hover-glow-success" : "gradient-border-destructive hover-glow-destructive"} hover-glow`}
-          style={{ transition: "box-shadow 0.3s ease, transform 0.2s ease" }}>
-          <div className="bg-card rounded-[calc(var(--radius)+1px)] p-5 h-full"
-            style={{ background: nonCryptoPnLTRY >= 0 ? "linear-gradient(135deg, hsl(var(--card)) 0%, hsl(158 84% 39% / 0.05) 100%)" : "linear-gradient(135deg, hsl(var(--card)) 0%, hsl(0 84% 60% / 0.05) 100%)" }}>
-            <div className="flex items-start justify-between mb-3">
-              <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Günlük PnL</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Hisse · ETF · Emtia · Döviz</p>
-              </div>
-              <div className={`p-1.5 rounded-lg ${nonCryptoPnLTRY >= 0 ? "bg-success/10" : "bg-destructive/10"}`}>
-                <TrendingUp className={`h-4 w-4 ${nonCryptoPnLTRY >= 0 ? "text-success" : "text-destructive"}`} />
-              </div>
+        {/* Günlük PnL */}
+        <div className={`finos-card p-5 hover-glow gradient-border-card ${nonCryptoPnLTRY >= 0 ? "gradient-border-success hover-glow-success" : "gradient-border-destructive hover-glow-destructive"}`}>
+          <div className="flex items-start justify-between mb-3">
+            <div>
+              <p className="text-xs font-medium text-[#8892A4] uppercase tracking-wider">Günlük PnL</p>
+              <p className="text-xs text-[#4E5A6B] mt-0.5">Hisse · ETF · Emtia · Döviz</p>
             </div>
-
-            {isLoading ? (
-              <div className="space-y-2">
-                <div className="h-8 w-32 bg-muted animate-pulse rounded" />
-                <div className="h-4 w-24 bg-muted animate-pulse rounded" />
-              </div>
-            ) : (
-              <>
-                <div className="count-animate">
-                  <PrivacyValue
-                    value={`${nonCryptoPnLTRY >= 0 ? "+" : ""}${formatCurrency(nonCryptoPnLTRY)}`}
-                    hidden={privacyMode}
-                    className={`text-2xl font-bold ${nonCryptoPnLTRY >= 0 ? "text-success" : "text-destructive"}`}
-                  />
-                </div>
-
-                <div className={`flex items-center gap-1 mt-1 text-sm font-medium ${nonCryptoPnLPct >= 0 ? "text-success" : "text-destructive"}`}>
-                  {nonCryptoPnLPct >= 0
-                    ? <ArrowUpRight className="h-3.5 w-3.5" />
-                    : <ArrowDownRight className="h-3.5 w-3.5" />}
-                  {privacyMode ? "••%" : `${formatPercent(nonCryptoPnLPct)} ortalama`}
-                </div>
-
-                {bestNonCrypto && (
-                  <div className="mt-4 pt-3 border-t border-border/50">
-                    <p className="text-xs text-muted-foreground mb-1">En iyi performans</p>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-foreground">{bestNonCrypto.symbol}</span>
-                      <span className={`text-sm font-semibold ${bestNonCrypto.change >= 0 ? "text-success" : "text-destructive"}`}>
-                        {privacyMode ? "••%" : formatPercent(bestNonCrypto.change)}
-                      </span>
-                    </div>
-                  </div>
-                )}
-
-                {nonCryptoAssets.length === 0 && (
-                  <p className="text-xs text-muted-foreground mt-4">Hisse/ETF varlığı bulunamadı</p>
-                )}
-              </>
-            )}
+            <div className={`p-1.5 rounded-lg ${nonCryptoPnLTRY >= 0 ? "bg-[rgba(0,212,170,0.1)]" : "bg-[rgba(255,71,87,0.1)]"}`}>
+              <TrendingUp className={`h-4 w-4 ${nonCryptoPnLTRY >= 0 ? "text-[#00D4AA]" : "text-[#FF4757]"}`} />
+            </div>
           </div>
+          {isLoading ? <StatSkeleton /> : (
+            <>
+              <div className="count-animate">
+                <PrivacyValue value={`${nonCryptoPnLTRY >= 0 ? "+" : ""}${fmt(nonCryptoPnLTRY)}`} hidden={privacyMode}
+                  className={`text-2xl font-bold font-mono ${nonCryptoPnLTRY >= 0 ? "text-[#00D4AA]" : "text-[#FF4757]"}`} />
+              </div>
+              <div className={`flex items-center gap-1 mt-1 text-sm font-medium font-mono ${nonCryptoPnLPct >= 0 ? "text-[#00D4AA]" : "text-[#FF4757]"}`}>
+                {nonCryptoPnLPct >= 0 ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />}
+                {privacyMode ? "••%" : `${fmtPct(nonCryptoPnLPct)} ortalama`}
+              </div>
+              {bestNonCrypto ? (
+                <div className="mt-4 pt-3 border-t border-[rgba(255,255,255,0.06)]">
+                  <p className="text-xs text-[#4E5A6B] mb-1">En iyi performans</p>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-[#F0F2F7]">{bestNonCrypto.symbol}</span>
+                    <span className={`text-sm font-semibold font-mono ${bestNonCrypto.change >= 0 ? "text-[#00D4AA]" : "text-[#FF4757]"}`}>
+                      {privacyMode ? "••%" : fmtPct(bestNonCrypto.change)}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-xs text-[#4E5A6B] mt-4">Hisse/ETF varlığı bulunamadı</p>
+              )}
+            </>
+          )}
         </div>
 
-        <div className={`gradient-border-card glass-card ${cryptoPnLTRY >= 0 ? "gradient-border-success hover-glow-success" : "gradient-border-destructive hover-glow-destructive"} hover-glow`}
-          style={{ transition: "box-shadow 0.3s ease, transform 0.2s ease" }}>
-          <div className="bg-card rounded-[calc(var(--radius)+1px)] p-5 h-full"
-            style={{ background: cryptoPnLTRY >= 0 ? "linear-gradient(135deg, hsl(var(--card)) 0%, hsl(43 96% 56% / 0.05) 100%)" : "linear-gradient(135deg, hsl(var(--card)) 0%, hsl(0 84% 60% / 0.05) 100%)" }}>
-            <div className="flex items-start justify-between mb-3">
-              <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Kripto PnL</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Kripto Varlıklar</p>
-              </div>
-              <div className="p-1.5 rounded-lg bg-yellow-500/10">
-                <Bitcoin className="h-4 w-4 text-yellow-500" />
-              </div>
+        {/* Kripto PnL */}
+        <div className={`finos-card p-5 hover-glow gradient-border-card ${cryptoPnLTRY >= 0 ? "gradient-border-success hover-glow-success" : "gradient-border-destructive hover-glow-destructive"}`}>
+          <div className="flex items-start justify-between mb-3">
+            <div>
+              <p className="text-xs font-medium text-[#8892A4] uppercase tracking-wider">Kripto PnL</p>
+              <p className="text-xs text-[#4E5A6B] mt-0.5">Kripto Varlıklar</p>
             </div>
-
-            {isLoading ? (
-              <div className="space-y-2">
-                <div className="h-8 w-32 bg-muted animate-pulse rounded" />
-                <div className="h-4 w-24 bg-muted animate-pulse rounded" />
-              </div>
-            ) : (
-              <>
-                <div className="count-animate">
-                  <PrivacyValue
-                    value={`${cryptoPnLTRY >= 0 ? "+" : ""}${formatCurrency(cryptoPnLTRY)}`}
-                    hidden={privacyMode}
-                    className={`text-2xl font-bold ${cryptoPnLTRY >= 0 ? "text-success" : "text-destructive"}`}
-                  />
-                </div>
-
-                <div className={`flex items-center gap-1 mt-1 text-sm font-medium ${cryptoPnLPct >= 0 ? "text-success" : "text-destructive"}`}>
-                  {cryptoPnLPct >= 0
-                    ? <ArrowUpRight className="h-3.5 w-3.5" />
-                    : <ArrowDownRight className="h-3.5 w-3.5" />}
-                  {privacyMode ? "••%" : `${formatPercent(cryptoPnLPct)} ortalama`}
-                </div>
-
-                {bestCrypto && (
-                  <div className="mt-4 pt-3 border-t border-border/50">
-                    <p className="text-xs text-muted-foreground mb-1">En iyi performans</p>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-foreground">{bestCrypto.symbol}</span>
-                      <span className={`text-sm font-semibold ${bestCrypto.change >= 0 ? "text-success" : "text-destructive"}`}>
-                        {privacyMode ? "••%" : formatPercent(bestCrypto.change)}
-                      </span>
-                    </div>
-                  </div>
-                )}
-
-                {cryptoAssets.length === 0 && (
-                  <p className="text-xs text-muted-foreground mt-4">Kripto varlığı bulunamadı</p>
-                )}
-              </>
-            )}
+            <div className="p-1.5 rounded-lg bg-[rgba(255,184,51,0.1)]">
+              <Bitcoin className="h-4 w-4 text-[#FFB833]" />
+            </div>
           </div>
+          {isLoading ? <StatSkeleton /> : (
+            <>
+              <div className="count-animate">
+                <PrivacyValue value={`${cryptoPnLTRY >= 0 ? "+" : ""}${fmt(cryptoPnLTRY)}`} hidden={privacyMode}
+                  className={`text-2xl font-bold font-mono ${cryptoPnLTRY >= 0 ? "text-[#00D4AA]" : "text-[#FF4757]"}`} />
+              </div>
+              <div className={`flex items-center gap-1 mt-1 text-sm font-medium font-mono ${cryptoPnLPct >= 0 ? "text-[#00D4AA]" : "text-[#FF4757]"}`}>
+                {cryptoPnLPct >= 0 ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />}
+                {privacyMode ? "••%" : `${fmtPct(cryptoPnLPct)} ortalama`}
+              </div>
+              {bestCrypto ? (
+                <div className="mt-4 pt-3 border-t border-[rgba(255,255,255,0.06)]">
+                  <p className="text-xs text-[#4E5A6B] mb-1">En iyi performans</p>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-[#F0F2F7]">{bestCrypto.symbol}</span>
+                    <span className={`text-sm font-semibold font-mono ${bestCrypto.change >= 0 ? "text-[#00D4AA]" : "text-[#FF4757]"}`}>
+                      {privacyMode ? "••%" : fmtPct(bestCrypto.change)}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-xs text-[#4E5A6B] mt-4">Kripto varlığı bulunamadı</p>
+              )}
+            </>
+          )}
         </div>
       </div>
 
-      <div className={`gradient-border-card glass-card hover-glow ${riskColor === "success" ? "" : riskColor === "warning" ? "gradient-border-warning" : "gradient-border-destructive"}`}>
-        <div className="bg-card rounded-[calc(var(--radius)+1px)] p-5"
-          style={{
-            background: riskColor === "success"
-              ? "linear-gradient(135deg, hsl(var(--card)) 0%, hsl(158 84% 39% / 0.04) 100%)"
-              : riskColor === "warning"
-              ? "linear-gradient(135deg, hsl(var(--card)) 0%, hsl(43 96% 56% / 0.05) 100%)"
-              : "linear-gradient(135deg, hsl(var(--card)) 0%, hsl(0 84% 60% / 0.05) 100%)"
-          }}>
-          <div className="flex flex-wrap items-start gap-6">
-            <div className="flex items-center gap-3 min-w-[140px]">
-              <div className={`p-2 rounded-xl ${riskColor === "success" ? "bg-success/10" : riskColor === "warning" ? "bg-yellow-500/10" : "bg-destructive/10"}`}>
-                <Shield className={`h-5 w-5 ${riskColor === "success" ? "text-success" : riskColor === "warning" ? "text-yellow-500" : "text-destructive"}`} />
-              </div>
-              <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Risk Seviyesi</p>
-                <p className={`text-xl font-bold mt-0.5 ${riskColor === "success" ? "text-success" : riskColor === "warning" ? "text-yellow-500" : "text-destructive"}`}>
-                  {riskLabel}
-                </p>
-              </div>
+      {/* Risk Card */}
+      <div className="finos-card p-5" style={{ borderLeft: `3px solid ${riskHex}` }}>
+        <div className="flex flex-wrap items-start gap-6">
+          <div className="flex items-center gap-3 min-w-[140px]">
+            <div className="p-2 rounded-xl" style={{ backgroundColor: `${riskHex}15` }}>
+              <Shield className="h-5 w-5" style={{ color: riskHex }} />
             </div>
-
-            <div className="flex flex-wrap gap-6 flex-1">
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Risk Skoru</p>
-                <div className="flex items-center gap-2">
-                  <span className={`text-lg font-bold ${riskColor === "success" ? "text-success" : riskColor === "warning" ? "text-yellow-500" : "text-destructive"}`}>
-                    {riskScore.toFixed(1)}/10
-                  </span>
-                </div>
-                <div className="flex gap-0.5 mt-1.5">
-                  {Array.from({ length: 10 }).map((_, i) => (
-                    <div
-                      key={i}
-                      className={`h-1.5 w-4 rounded-full ${i < riskScore
-                        ? riskScore <= 3 ? "bg-success" : riskScore <= 6 ? "bg-yellow-500" : "bg-destructive"
-                        : "bg-muted"
-                      }`}
-                    />
+            <div>
+              <p className="text-xs font-medium text-[#8892A4] uppercase tracking-wider">Risk Seviyesi</p>
+              <p className="text-xl font-bold mt-0.5 font-mono" style={{ color: riskHex }}>{riskLabel}</p>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-6 flex-1">
+            <div>
+              <p className="text-xs text-[#4E5A6B] mb-1">Risk Skoru</p>
+              <div className="flex items-center gap-2">
+                <span className="text-lg font-bold font-mono" style={{ color: riskHex }}>{riskScore.toFixed(1)}/10</span>
+                <div className="flex gap-1">
+                  {Array.from({ length: 10 }, (_, i) => (
+                    <div key={i} className="risk-dash" style={{ backgroundColor: i < Math.round(riskScore) ? riskHex : "#151A23" }} />
                   ))}
                 </div>
               </div>
-
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Kripto Ağırlığı</p>
-                <p className="text-lg font-bold text-foreground">%{cryptoWeight.toFixed(1)}</p>
-                <div className="h-1.5 w-24 bg-muted rounded-full mt-1.5 overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all duration-500 ${cryptoWeight > 50 ? "bg-destructive" : cryptoWeight > 25 ? "bg-yellow-500" : "bg-success"}`}
-                    style={{ width: `${Math.min(cryptoWeight, 100)}%` }}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Volatilite</p>
-                <p className="text-lg font-bold text-foreground">{volatility.toFixed(1)}%</p>
-                <p className="text-xs text-muted-foreground">Ortalama değişim</p>
-              </div>
-
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Konsantrasyon</p>
-                <p className="text-lg font-bold text-foreground">%{topConcentration.toFixed(1)}</p>
-                <p className="text-xs text-muted-foreground">En büyük pozisyon</p>
-              </div>
-
-              <div className="ml-auto flex items-center gap-2 self-center">
-                {riskScore <= 3 && <CheckCircle className="h-5 w-5 text-success" />}
-                {riskScore > 3 && riskScore <= 6 && <AlertTriangle className="h-5 w-5 text-yellow-500" />}
-                {riskScore > 6 && <Flame className="h-5 w-5 text-destructive" />}
-                <span className="text-xs text-muted-foreground">
-                  {riskScore <= 3 ? "Dengeli portföy" : riskScore <= 6 ? "Orta risk profili" : "Yüksek risk profili"}
-                </span>
+            </div>
+            <div>
+              <p className="text-xs text-[#4E5A6B] mb-1">Kripto Ağırlığı</p>
+              <p className="text-lg font-bold font-mono text-[#F0F2F7]">%{cryptoWeight.toFixed(1)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-[#4E5A6B] mb-1">Volatilite</p>
+              <p className="text-lg font-bold font-mono text-[#F0F2F7]">{volatility.toFixed(1)}%</p>
+              <p className="text-xs text-[#4E5A6B]">Ortalama değişim</p>
+            </div>
+            <div>
+              <p className="text-xs text-[#4E5A6B] mb-1">Konsantrasyon</p>
+              <p className="text-lg font-bold font-mono text-[#F0F2F7]">%{topConcentration.toFixed(1)}</p>
+              <p className="text-xs text-[#4E5A6B]">En büyük pozisyon</p>
+            </div>
+            <div className="ml-auto flex items-center">
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg" style={{ backgroundColor: `${riskHex}15` }}>
+                <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: riskHex }} />
+                <span className="text-sm font-medium" style={{ color: riskHex }}>Dengeli portföy</span>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-border/60 bg-muted/30 relative" data-testid="insights-ticker">
+      {/* Insights ticker */}
+      <div className="finos-card p-0 overflow-hidden">
         <div className="flex items-center">
-          <div className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider rounded-l-lg z-10">
-            <Activity className="h-3 w-3" />
-            <span>Insight</span>
+          <div className="flex-shrink-0 px-4 py-3 bg-[#151A23] border-r border-[rgba(255,255,255,0.06)]">
+            <span className="text-xs font-bold text-[#00D4AA] uppercase tracking-wider flex items-center gap-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-[#00D4AA] animate-pulse" />
+              INSİGHT
+            </span>
           </div>
-          <div className="overflow-hidden flex-1 py-2 px-3">
-            <div className="flex whitespace-nowrap ticker-scroll">
+          <div className="overflow-hidden flex-1 relative">
+            <div className="ticker-scroll flex items-center gap-8 py-3 px-4 whitespace-nowrap">
               {[...insights, ...insights].map((msg, i) => (
-                <span key={i} className="inline-flex items-center text-xs text-muted-foreground mr-8">
-                  <span className="w-1.5 h-1.5 rounded-full bg-primary/60 mr-2 flex-shrink-0" />
+                <span key={i} className="text-xs text-[#8892A4] flex items-center gap-2">
+                  <span className="w-1 h-1 rounded-full bg-[#4E5A6B]" />
                   {msg}
                 </span>
               ))}
@@ -557,161 +387,71 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Charts */}
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card data-testid="card-asset-allocation">
-          <CardHeader>
-            <CardTitle>Varlık Dağılımı</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {allocationLoading ? (
-              <div className="h-[300px] w-full bg-muted animate-pulse rounded" />
-            ) : allocationError ? (
-              <div className="flex items-center justify-center h-[300px] text-destructive">Veri yüklenemedi</div>
-            ) : (
-              <AssetAllocationChart data={allocation || []} />
-            )}
-          </CardContent>
-        </Card>
-
-        <Card data-testid="card-monthly-performance">
-          <CardHeader className="pb-2">
-            <div className="flex items-start justify-between">
-              <div>
-                <CardTitle>Bütçe Bakiyesi Performansı</CardTitle>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Gelir − Gider + Kasa + Portföy Kar/Zarar = Toplam Bakiye
-                </p>
-              </div>
-              {(() => {
-                const kasaValue = parseFloat(localStorage.getItem("toplam_kasa") || "0");
-                const totalBakiye = kasaValue
-                  + (budgetSummary?.totalIncome || 0)
-                  - (budgetSummary?.totalExpense || 0)
-                  + (summary?.monthlyChangeAmount || 0);
-                return (
-                  <div className="text-right">
-                    <p className="text-xs text-muted-foreground">Toplam Bakiye</p>
-                    <p className={`text-lg font-bold ${totalBakiye >= 0 ? "text-success" : "text-destructive"}`}>
-                      {totalBakiye.toLocaleString("tr-TR", { style: "currency", currency: "TRY", maximumFractionDigits: 0 })}
-                    </p>
-                  </div>
-                );
-              })()}
-            </div>
-          </CardHeader>
-          <CardContent>
-            <Tabs value={perfPeriod} onValueChange={setPerfPeriod} className="mb-4">
-              <TabsList>
-                <TabsTrigger value="daily" data-testid="tab-perf-daily">Günlük</TabsTrigger>
-                <TabsTrigger value="weekly" data-testid="tab-perf-weekly">Haftalık</TabsTrigger>
-                <TabsTrigger value="monthly" data-testid="tab-perf-monthly">Aylık</TabsTrigger>
-              </TabsList>
-            </Tabs>
-            {performanceLoading ? (
-              <div className="h-[300px] w-full bg-muted animate-pulse rounded" />
-            ) : performanceError ? (
-              <div className="flex items-center justify-center h-[300px] text-destructive">Veri yüklenemedi</div>
-            ) : (() => {
-              const kasaValue = parseFloat(localStorage.getItem("toplam_kasa") || "0");
-              const portfolioOffset = summary?.monthlyChangeAmount || 0;
-              const staticOffset = kasaValue + portfolioOffset;
-              const enrichedData = (performance || []).map(p => ({
-                ...p,
-                value: p.value + staticOffset,
-              }));
-              const totalBakiye = kasaValue
-                + (budgetSummary?.totalIncome || 0)
-                - (budgetSummary?.totalExpense || 0)
-                + portfolioOffset;
-              return (
-                <MonthlyPerformanceChart
-                  data={enrichedData}
-                  referenceValue={totalBakiye}
-                  referenceLabel={`Toplam Bakiye: ${(totalBakiye / 1000).toFixed(0)}K ₺`}
-                />
-              );
-            })()}
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card data-testid="card-assets-list">
-        <CardHeader>
-          <CardTitle>Varlıklarım</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {assetsLoading ? (
-            <div className="space-y-3">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="h-12 w-full bg-muted animate-pulse rounded" />
+        <div className="finos-card p-5">
+          <h3 className="text-sm font-semibold text-[#F0F2F7] mb-4">Varlık Dağılımı</h3>
+          {allocationLoading ? (
+            <div className="h-[250px] skeleton-shimmer" />
+          ) : (
+            <AssetAllocationChart data={allocation || []} />
+          )}
+        </div>
+        <div className="finos-card p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-semibold text-[#F0F2F7]">Bütçe Bakiyesi Performansı</h3>
+            <div className="flex gap-1">
+              {["monthly", "quarterly", "yearly"].map(p => (
+                <button key={p} onClick={() => setPerfPeriod(p)}
+                  className="px-2.5 py-1 rounded-lg text-xs font-medium transition-all"
+                  style={{ background: perfPeriod === p ? "#00D4AA" : "rgba(255,255,255,0.04)", color: perfPeriod === p ? "#080A0F" : "#8892A4" }}>
+                  {p === "monthly" ? "Günlük" : p === "quarterly" ? "Haftalık" : "Aylık"}
+                </button>
               ))}
             </div>
-          ) : assetsError ? (
-            <div className="text-center py-12 text-destructive">Varlıklar yüklenirken bir hata oluştu</div>
+          </div>
+          {performanceLoading ? (
+            <div className="h-[250px] skeleton-shimmer" />
           ) : (
-            <Tabs defaultValue="tumu" data-testid="tabs-assets">
-              <TabsList className="mb-4 flex w-full flex-wrap justify-start gap-1">
-                <TabsTrigger value="tumu" data-testid="tab-tumu">Tümü</TabsTrigger>
-                <TabsTrigger value="hisse" data-testid="tab-hisse">Hisse Senedi</TabsTrigger>
-                <TabsTrigger value="kripto" data-testid="tab-kripto">Kripto</TabsTrigger>
-                <TabsTrigger value="etf" data-testid="tab-etf">ETF</TabsTrigger>
-                <TabsTrigger value="madeni_para" data-testid="tab-madeni-para">Madeni Para</TabsTrigger>
-                <div className="ml-auto w-full sm:w-[320px]">
-                  <Input
-                    value={assetSearch}
-                    onChange={(e) => setAssetSearch(e.target.value)}
-                    placeholder="Varlık adı, sembol, piyasa veya tür ara..."
-                    data-testid="input-asset-search"
-                  />
-                </div>
-              </TabsList>
-              <TabsContent value="tumu">
-                <AssetTable assets={assets || []} searchTerm={assetSearch} />
-              </TabsContent>
-              <TabsContent value="hisse">
-                <AssetTable assets={(assets || []).filter(a => a.type === "hisse")} searchTerm={assetSearch} />
-              </TabsContent>
-              <TabsContent value="kripto">
-                <AssetTable assets={(assets || []).filter(a => a.type === "kripto")} searchTerm={assetSearch} />
-              </TabsContent>
-              <TabsContent value="etf">
-                <AssetTable assets={(assets || []).filter(a => a.type === "etf")} searchTerm={assetSearch} />
-              </TabsContent>
-              <TabsContent value="madeni_para">
-                <AssetTable assets={(assets || []).filter(a => a.type === "madeni_para")} searchTerm={assetSearch} />
-              </TabsContent>
-            </Tabs>
+            <MonthlyPerformanceChart data={performance || []} />
           )}
+        </div>
+      </div>
 
-          {!assetsLoading && !assetsError && (assets || []).length > 0 && (
-            <div className="flex items-center justify-end gap-2 mt-4 pt-4 border-t border-border">
-              <span className="text-xs text-muted-foreground mr-2">Dışa Aktar:</span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => exportAssetsToPDF(assets || [])}
-                data-testid="button-assets-export-pdf"
-              >
-                <FileText className="h-4 w-4 mr-1.5" />
-                PDF
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => exportAssetsToExcel(assets || [])}
-                data-testid="button-assets-export-excel"
-              >
-                <FileSpreadsheet className="h-4 w-4 mr-1.5" />
-                Excel
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* Asset Table */}
+      <div className="finos-card p-5">
+        <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
+          <h3 className="text-sm font-semibold text-[#F0F2F7]">Varlıklarım</h3>
+          <div className="flex items-center gap-2 flex-wrap">
+            <input
+              placeholder="Varlık ara..."
+              value={assetSearch}
+              onChange={e => setAssetSearch(e.target.value)}
+              className="px-3 py-2 bg-[#151A23] border border-[rgba(255,255,255,0.06)] rounded-lg text-sm text-[#F0F2F7] placeholder:text-[#4E5A6B] focus:outline-none focus:border-[#00D4AA] transition-colors w-48"
+              data-testid="input-asset-search"
+            />
+            {(assets || []).length > 0 && (
+              <>
+                <button onClick={() => exportAssetsToPDF(filteredAssets)} className="flex items-center gap-1.5 px-3 py-2 bg-[#151A23] border border-[rgba(255,255,255,0.06)] rounded-lg text-xs text-[#8892A4] hover:text-[#F0F2F7] transition-colors" data-testid="button-assets-export-pdf">
+                  <FileText className="h-3.5 w-3.5" /> PDF
+                </button>
+                <button onClick={() => exportAssetsToExcel(filteredAssets)} className="flex items-center gap-1.5 px-3 py-2 bg-[#151A23] border border-[rgba(255,255,255,0.06)] rounded-lg text-xs text-[#8892A4] hover:text-[#F0F2F7] transition-colors" data-testid="button-assets-export-excel">
+                  <FileSpreadsheet className="h-3.5 w-3.5" /> Excel
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+        {assetsLoading ? (
+          <div className="space-y-3">
+            {[1,2,3].map(i => <div key={i} className="h-14 skeleton-shimmer" />)}
+          </div>
+        ) : (
+          <AssetTable assets={filteredAssets} />
+        )}
+      </div>
 
       <AddAssetDialog open={isAddAssetOpen} onOpenChange={setIsAddAssetOpen} />
     </div>
   );
 }
-
-// test commit
