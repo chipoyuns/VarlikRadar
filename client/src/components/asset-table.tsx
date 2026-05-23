@@ -31,6 +31,18 @@ export function AssetTable({ assets, searchTerm = "" }: AssetTableProps) {
     );
   });
 
+  /* Alt Toplam hesaplamaları */
+  const subtotalValueTRY = filteredAssets.reduce((sum, a) => sum + (a.totalValueTRY || 0), 0);
+  const subtotalProfit = filteredAssets.reduce((sum, a) => sum + (a.profit || 0), 0);
+  const weightedChange = subtotalValueTRY > 0
+    ? filteredAssets.reduce((sum, a) => sum + (a.change || 0) * (a.totalValueTRY || 0), 0) / subtotalValueTRY
+    : 0;
+  const subtotalCount = filteredAssets.length;
+
+  const fmtTRY = (amount: number) => {
+    return `₺${amount.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => await apiRequest("DELETE", `/api/assets/${id}`, undefined),
     onSuccess: () => {
@@ -73,7 +85,7 @@ export function AssetTable({ assets, searchTerm = "" }: AssetTableProps) {
             </tr>
           </thead>
           <tbody>
-            {filteredAssets.map((asset, idx) => {
+            {filteredAssets.map((asset) => {
               const cfg = TYPE_CONFIG[asset.type] || { label: asset.type, color: "#8892A4", bg: "rgba(136,146,164,0.1)" };
               const pnl = asset.profit ?? 0;
               const change = asset.change ?? 0;
@@ -154,6 +166,34 @@ export function AssetTable({ assets, searchTerm = "" }: AssetTableProps) {
               );
             })}
           </tbody>
+          <tfoot>
+            <tr className="border-t-2 border-[rgba(0,212,170,0.2)] bg-[rgba(0,212,170,0.04)]">
+              <td className="py-3.5 pr-4" colSpan={3}>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold text-[#00D4AA]">Alt Toplam</span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[rgba(0,212,170,0.15)] text-[#00D4AA]">
+                    {subtotalCount} varlık
+                  </span>
+                </div>
+              </td>
+              <td className="py-3.5 pr-4" colSpan={3}></td>
+              <td className="py-3.5 pr-4 text-right">
+                <span className="text-sm font-mono font-bold text-[#F0F2F7]">{fmtTRY(subtotalValueTRY)}</span>
+              </td>
+              <td className="py-3.5 pr-4 text-right">
+                <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-mono font-semibold ${weightedChange >= 0 ? "bg-[rgba(0,212,170,0.12)] text-[#00D4AA]" : "bg-[rgba(255,71,87,0.12)] text-[#FF4757]"}`}>
+                  {weightedChange >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                  {weightedChange >= 0 ? "+" : ""}{weightedChange.toFixed(2)}%
+                </div>
+              </td>
+              <td className="py-3.5 pr-4 text-right">
+                <span className={`text-sm font-mono font-bold ${subtotalProfit >= 0 ? "text-[#00D4AA]" : "text-[#FF4757]"}`}>
+                  {subtotalProfit >= 0 ? "+" : ""}{fmtTRY(subtotalProfit)}
+                </span>
+              </td>
+              <td className="py-3.5"></td>
+            </tr>
+          </tfoot>
         </table>
       </div>
 
