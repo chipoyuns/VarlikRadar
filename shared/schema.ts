@@ -91,7 +91,8 @@ export type AssetDetail = Asset & {
   totalValueTRY: number; // Toplam Değer TRY cinsinden (dönüşüm yapılmış)
   change: number; // Değişim (%)
   changeAmount: number; // Değişim (Tutar)
-  profit: number; // Kar/Zarar
+  profit: number; // Kar/Zarar - native currency
+  profitTRY: number; // Kar/Zarar TRY cinsinden
 };
 
 // Gelir/Gider kategorileri

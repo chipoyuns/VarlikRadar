@@ -31,9 +31,9 @@ export function AssetTable({ assets, searchTerm = "" }: AssetTableProps) {
     );
   });
 
-  /* Alt Toplam hesaplamaları */
+  /* Alt Toplam hesaplamaları (hepsi TRY cinsinden) */
   const subtotalValueTRY = filteredAssets.reduce((sum, a) => sum + (a.totalValueTRY || 0), 0);
-  const subtotalProfit = filteredAssets.reduce((sum, a) => sum + (a.profit || 0), 0);
+  const subtotalProfitTRY = filteredAssets.reduce((sum, a) => sum + (a.profitTRY || 0), 0);
   const weightedChange = subtotalValueTRY > 0
     ? filteredAssets.reduce((sum, a) => sum + (a.change || 0) * (a.totalValueTRY || 0), 0) / subtotalValueTRY
     : 0;
@@ -140,7 +140,7 @@ export function AssetTable({ assets, searchTerm = "" }: AssetTableProps) {
                   </td>
                   <td className="py-3.5 pr-4 text-right">
                     <span className={`text-sm font-mono font-semibold ${isPnlPos ? "text-[#00D4AA]" : "text-[#FF4757]"}`}>
-                      {isPnlPos ? "+" : ""}{fmtCurrency(pnl, asset.currency)}
+                      {isPnlPos ? "+" : ""}{fmtTRY(asset.profitTRY || 0)}
                     </span>
                   </td>
                   <td className="py-3.5">
@@ -187,8 +187,8 @@ export function AssetTable({ assets, searchTerm = "" }: AssetTableProps) {
                 </div>
               </td>
               <td className="py-3.5 pr-4 text-right">
-                <span className={`text-sm font-mono font-bold ${subtotalProfit >= 0 ? "text-[#00D4AA]" : "text-[#FF4757]"}`}>
-                  {subtotalProfit >= 0 ? "+" : ""}{fmtTRY(subtotalProfit)}
+                <span className={`text-sm font-mono font-bold ${subtotalProfitTRY >= 0 ? "text-[#00D4AA]" : "text-[#FF4757]"}`}>
+                  {subtotalProfitTRY >= 0 ? "+" : ""}{fmtTRY(subtotalProfitTRY)}
                 </span>
               </td>
               <td className="py-3.5"></td>

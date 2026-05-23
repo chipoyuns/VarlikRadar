@@ -327,10 +327,11 @@ export class DatabaseStorage implements IStorage {
       const totalValue = quantity * currentPrice; // native currency
       const totalValueTRY = toTRY(totalValue, asset.currency, rates); // normalized to TRY
       const totalCost = quantity * averagePrice;
-      const profit = totalValue - totalCost;
+      const profit = totalValue - totalCost; // native currency
+      const profitTRY = toTRY(profit, asset.currency, rates); // normalized to TRY
       const change = totalCost > 0 ? ((currentPrice - averagePrice) / averagePrice) * 100 : 0;
       const changeAmount = currentPrice - averagePrice;
-      
+
       return {
         ...asset,
         totalValue,
@@ -338,6 +339,7 @@ export class DatabaseStorage implements IStorage {
         change,
         changeAmount,
         profit,
+        profitTRY,
       };
     });
   }
