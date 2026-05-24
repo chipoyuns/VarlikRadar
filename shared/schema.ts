@@ -217,6 +217,27 @@ export const insertDebtSchema = createInsertSchema(debts).omit({
 export type InsertDebt = z.infer<typeof insertDebtSchema>;
 export type Debt = typeof debts.$inferSelect;
 
+// Abonelikler tablosu
+export const subscriptions = pgTable("subscriptions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  logo: text("logo").notNull().default("S"),
+  color: text("color").notNull().default("#4B9EFF"),
+  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+  billingDay: integer("billing_day").notNull().default(1),
+  category: text("category").notNull().default("dijital"),
+  isActive: integer("is_active").notNull().default(1),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertSubscriptionSchema = createInsertSchema(subscriptions).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertSubscription = z.infer<typeof insertSubscriptionSchema>;
+export type Subscription = typeof subscriptions.$inferSelect;
+
 // Bütçe özeti tipi
 export type BudgetSummary = {
   totalIncome: number;

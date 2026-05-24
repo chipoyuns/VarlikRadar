@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertAssetSchema, insertTransactionSchema, insertIncomeSchema, insertExpenseSchema, insertGoalSchema, insertDebtSchema } from "@shared/schema";
+import { insertAssetSchema, insertTransactionSchema, insertIncomeSchema, insertExpenseSchema, insertGoalSchema, insertDebtSchema, insertSubscriptionSchema } from "@shared/schema";
 import { updateAllAssetPrices, fetchSingleAssetPrice, fetchExchangeRates } from "./services/priceService";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -408,7 +408,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/budget/performance", async (req, res) => {
     try {
       const period = (req.query.period as string) || "monthly";
-      const [incomes, expenses] = await Promise.all([storage.getIncomes(), storage.getExpenses()]);
+      const kasaValue = parseFloat((req.query.kasaValue as string) || "0") || 0;
+      const [allIncomes, allExpenses] = await Promise.all([storage.getIncomes(), storage.getExpenses()]);
       const now = new Date();
 
       const MONTH_NAMES = ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
@@ -416,13 +417,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       type Point = { label: string; end: Date };
       const points: Point[] = [];
 
-      if (period === "monthly") {
+      if (period === "daily") {
         for (let i = 29; i >= 0; i--) {
           const d = new Date(now); d.setDate(d.getDate() - i);
           const end = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59);
           points.push({ label: `${d.getDate()}.${d.getMonth() + 1}`, end });
         }
-      } else if (period === "quarterly") {
+      } else if (period === "weekly") {
         for (let i = 11; i >= 0; i--) {
           const d = new Date(now); d.setDate(d.getDate() - i * 7);
           const end = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59);
@@ -437,14 +438,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const result = points.map(point => {
-        const incomeTotal = incomes.filter(inc => new Date(inc.date) <= point.end).reduce((s, inc) => s + parseFloat(inc.amount), 0);
-        const expenseTotal = expenses.filter(exp => new Date(exp.date) <= point.end).reduce((s, exp) => s + parseFloat(exp.amount), 0);
-        return { month: point.label, value: incomeTotal - expenseTotal };
+        const incomeTotal = allIncomes.filter(inc => new Date(inc.date) <= point.end).reduce((s, inc) => s + parseFloat(inc.amount), 0);
+        const expenseTotal = allExpenses.filter(exp => new Date(exp.date) <= point.end).reduce((s, exp) => s + parseFloat(exp.amount), 0);
+        return { month: point.label, value: kasaValue + incomeTotal - expenseTotal };
       });
 
       res.json(result);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch budget performance" });
+    }
+  });
+
+  // Subscription routes
+  app.get("/api/subscriptions", async (req, res) => {
+    try {
+      const subs = await storage.getSubscriptions();
+      res.json(subs);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch subscriptions" });
+    }
+  });
+
+  app.post("/api/subscriptions", async (req, res) => {
+    try {
+      const validated = insertSubscriptionSchema.parse(req.body);
+      const sub = await storage.createSubscription(validated);
+      res.status(201).json(sub);
+    } catch (error) {
+      console.error("POST /api/subscriptions error:", error);
+      res.status(400).json({ error: "Invalid subscription data", detail: String(error) });
+    }
+  });
+
+  app.patch("/api/subscriptions/:id", async (req, res) => {
+    try {
+      const validated = insertSubscriptionSchema.partial().parse(req.body);
+      const sub = await storage.updateSubscription(req.params.id, validated);
+      if (!sub) return res.status(404).json({ error: "Subscription not found" });
+      res.json(sub);
+    } catch (error) {
+      res.status(400).json({ error: "Invalid subscription data" });
+    }
+  });
+
+  app.delete("/api/subscriptions/:id", async (req, res) => {
+    try {
+      const deleted = await storage.deleteSubscription(req.params.id);
+      if (!deleted) return res.status(404).json({ error: "Subscription not found" });
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete subscription" });
     }
   });
 

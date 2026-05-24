@@ -16,12 +16,15 @@ import {
   type InsertGoal,
   type Debt,
   type InsertDebt,
+  type Subscription,
+  type InsertSubscription,
   assets,
   transactions,
   incomes,
   expenses,
   goals,
-  debts
+  debts,
+  subscriptions
 } from "@shared/schema";
 import { db } from "./db";
 import { fetchExchangeRates, toTRY } from "./services/exchangeRateService";
@@ -77,6 +80,13 @@ export interface IStorage {
   createDebt(debt: InsertDebt): Promise<Debt>;
   updateDebt(id: string, debt: Partial<InsertDebt>): Promise<Debt | undefined>;
   deleteDebt(id: string): Promise<boolean>;
+
+  // Subscription operations
+  getSubscriptions(): Promise<Subscription[]>;
+  getSubscription(id: string): Promise<Subscription | undefined>;
+  createSubscription(subscription: InsertSubscription): Promise<Subscription>;
+  updateSubscription(id: string, subscription: Partial<InsertSubscription>): Promise<Subscription | undefined>;
+  deleteSubscription(id: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -487,6 +497,31 @@ export class DatabaseStorage implements IStorage {
 
   async deleteGoal(id: string): Promise<boolean> {
     const result = await db.delete(goals).where(eq(goals.id, id));
+    return result.rowCount !== null && result.rowCount > 0;
+  }
+
+  // Subscription operations
+  async getSubscriptions(): Promise<Subscription[]> {
+    return await db.select().from(subscriptions).orderBy(desc(subscriptions.createdAt));
+  }
+
+  async getSubscription(id: string): Promise<Subscription | undefined> {
+    const [sub] = await db.select().from(subscriptions).where(eq(subscriptions.id, id));
+    return sub || undefined;
+  }
+
+  async createSubscription(insertSub: InsertSubscription): Promise<Subscription> {
+    const [sub] = await db.insert(subscriptions).values(insertSub).returning();
+    return sub;
+  }
+
+  async updateSubscription(id: string, updateData: Partial<InsertSubscription>): Promise<Subscription | undefined> {
+    const [sub] = await db.update(subscriptions).set(updateData).where(eq(subscriptions.id, id)).returning();
+    return sub || undefined;
+  }
+
+  async deleteSubscription(id: string): Promise<boolean> {
+    const result = await db.delete(subscriptions).where(eq(subscriptions.id, id));
     return result.rowCount !== null && result.rowCount > 0;
   }
 }

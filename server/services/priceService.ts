@@ -18,9 +18,16 @@ interface YahooChartResponse {
   };
 }
 
+interface TEFASResponse {
+  data: Array<{
+    TARIH: string;
+    FIYAT: string;
+    [key: string]: string;
+  }>;
+}
+
 export async function fetchBinancePrice(symbol: string): Promise<number | null> {
   try {
-    // Preserve alphanumeric characters for Binance symbols (e.g., 1INCH, SHIB1000)
     const binanceSymbol = symbol.toUpperCase().replace(/[^A-Z0-9]/g, "") + "USDT";
     const response = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${binanceSymbol}`);
     
@@ -81,6 +88,52 @@ export async function fetchYahooPrice(symbol: string, market: string): Promise<n
   }
 }
 
+export async function fetchTEFASPrice(symbol: string): Promise<number | null> {
+  try {
+    const upperSymbol = symbol.toUpperCase();
+    // Try last 7 days to handle weekends/holidays
+    for (let i = 0; i < 7; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      const dateStr = `${year}${month}${day}`;
+
+      const url = `https://www.tefas.gov.tr/api/DB/BindHistoryInfo?fontip=YAT&sfonkod=${upperSymbol}&bastarih=${dateStr}&bittarih=${dateStr}`;
+
+      const response = await fetch(url, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+          "Referer": "https://www.tefas.gov.tr/",
+          "Accept": "application/json, text/javascript, */*",
+        },
+      });
+
+      if (!response.ok) {
+        console.log(`TEFAS API error for ${symbol} on ${dateStr}: ${response.status}`);
+        continue;
+      }
+
+      const data: TEFASResponse = await response.json();
+
+      if (data?.data && data.data.length > 0) {
+        const price = parseFloat(data.data[0].FIYAT);
+        if (!isNaN(price) && price > 0) {
+          console.log(`TEFAS price for ${symbol}: ${price} (date: ${dateStr})`);
+          return price;
+        }
+      }
+    }
+
+    console.log(`No TEFAS price found for ${symbol}`);
+    return null;
+  } catch (error) {
+    console.error(`Failed to fetch TEFAS price for ${symbol}:`, error);
+    return null;
+  }
+}
+
 export interface PriceUpdateResult {
   assetId: string;
   symbol: string;
@@ -104,13 +157,15 @@ export async function updateAllAssetPrices(): Promise<PriceUpdateResult[]> {
         newPrice = await fetchBinancePrice(asset.symbol);
       } else if (asset.type === "hisse" || asset.type === "etf") {
         newPrice = await fetchYahooPrice(asset.symbol, asset.market);
+      } else if (asset.type === "fon") {
+        newPrice = await fetchTEFASPrice(asset.symbol);
       } else if (asset.type === "madeni_para") {
         newPrice = oldPrice;
       }
       
       if (newPrice !== null && newPrice > 0) {
         await storage.updateAsset(asset.id, {
-          currentPrice: newPrice.toFixed(2),
+          currentPrice: newPrice.toFixed(6),
         });
       }
     } catch (e) {
@@ -140,7 +195,8 @@ export async function fetchSingleAssetPrice(
     return await fetchBinancePrice(symbol);
   } else if (type === "hisse" || type === "etf") {
     return await fetchYahooPrice(symbol, market);
+  } else if (type === "fon") {
+    return await fetchTEFASPrice(symbol);
   }
   return null;
 }
-

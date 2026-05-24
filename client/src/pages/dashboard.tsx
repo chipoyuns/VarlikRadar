@@ -94,7 +94,7 @@ export default function Dashboard() {
   const { data: assets, isLoading: assetsLoading } = useQuery<AssetDetail[]>({ queryKey: ["/api/portfolio/details"] });
   const { data: allocation, isLoading: allocationLoading } = useQuery<AssetAllocation[]>({ queryKey: ["/api/portfolio/allocation"] });
   const { data: performance } = useQuery<MonthlyPerformance[]>({ queryKey: [`/api/portfolio/performance?period=${perfPeriod}`] });
-  const { data: budgetPerformance, isLoading: budgetPerfLoading } = useQuery<MonthlyPerformance[]>({ queryKey: [`/api/budget/performance?period=${perfPeriod}`] });
+  const { data: budgetPerformance, isLoading: budgetPerfLoading } = useQuery<MonthlyPerformance[]>({ queryKey: [`/api/budget/performance?period=${perfPeriod}&kasaValue=${parseFloat(localStorage.getItem("toplam_kasa") || "0") || 0}`] });
   const { data: budgetSummary } = useQuery<BudgetSummary>({ queryKey: ["/api/budget/summary"] });
 
   const updatePricesMutation = useMutation({
