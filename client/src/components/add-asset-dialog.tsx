@@ -151,6 +151,7 @@ export function AddAssetDialog({ open, onOpenChange }: AddAssetDialogProps) {
                           <SelectItem value="etf">ETF</SelectItem>
                           <SelectItem value="kripto">Kripto Para</SelectItem>
                           <SelectItem value="madeni_para">Madeni Para</SelectItem>
+                          <SelectItem value="fon">Yatırım Fonu</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />

@@ -1,7 +1,6 @@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
@@ -11,7 +10,8 @@ import { insertTransactionSchema, type InsertTransaction, type Asset } from "@sh
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { RefreshCw } from "lucide-react";
 
 interface AddTransactionDialogProps {
   open: boolean;
@@ -20,6 +20,7 @@ interface AddTransactionDialogProps {
 
 export function AddTransactionDialog({ open, onOpenChange }: AddTransactionDialogProps) {
   const { toast } = useToast();
+  const [isFetchingPrice, setIsFetchingPrice] = useState(false);
 
   const { data: assets } = useQuery<Asset[]>({
     queryKey: ["/api/assets"],
@@ -41,13 +42,41 @@ export function AddTransactionDialog({ open, onOpenChange }: AddTransactionDialo
 
   const quantity = form.watch("quantity");
   const price = form.watch("price");
+  const selectedAssetId = form.watch("assetId");
 
   useEffect(() => {
     const q = parseFloat(quantity) || 0;
     const p = parseFloat(price) || 0;
-    const total = q * p;
-    form.setValue("totalAmount", total.toString());
+    form.setValue("totalAmount", (q * p).toString());
   }, [quantity, price, form]);
+
+  const fetchCurrentPrice = async () => {
+    if (!selectedAssetId) {
+      toast({ title: "Uyarı", description: "Lütfen önce bir varlık seçiniz", variant: "destructive" });
+      return;
+    }
+    const selectedAsset = assets?.find(a => a.id === selectedAssetId);
+    if (!selectedAsset) return;
+
+    setIsFetchingPrice(true);
+    try {
+      const response = await fetch(`/api/prices/${selectedAsset.symbol}?type=${selectedAsset.type}&market=${selectedAsset.market}`);
+      if (response.ok) {
+        const data = await response.json();
+        form.setValue("price", data.price.toFixed(8));
+        toast({
+          title: "Fiyat Güncellendi",
+          description: `${selectedAsset.symbol} güncel fiyatı: ${data.price.toFixed(2)} ${selectedAsset.currency}`,
+        });
+      } else {
+        toast({ title: "Fiyat Bulunamadı", description: "Bu sembol için güncel fiyat alınamadı", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Hata", description: "Fiyat bilgisi alınırken bir hata oluştu", variant: "destructive" });
+    } finally {
+      setIsFetchingPrice(false);
+    }
+  };
 
   const createMutation = useMutation({
     mutationFn: async (data: InsertTransaction) => {
@@ -60,30 +89,20 @@ export function AddTransactionDialog({ open, onOpenChange }: AddTransactionDialo
       queryClient.invalidateQueries({ queryKey: ["/api/portfolio/allocation"] });
       queryClient.invalidateQueries({ queryKey: ["/api/portfolio/performance"] });
       queryClient.invalidateQueries({ queryKey: ["/api/portfolio/details"] });
-      toast({
-        title: "Başarılı",
-        description: "İşlem başarıyla eklendi",
-      });
+      toast({ title: "Başarılı", description: "İşlem başarıyla eklendi" });
       form.reset();
       onOpenChange(false);
     },
     onError: (error: any) => {
-      toast({
-        title: "Hata",
-        description: error?.message || "İşlem eklenirken bir hata oluştu",
-        variant: "destructive",
-      });
+      toast({ title: "Hata", description: error?.message || "İşlem eklenirken bir hata oluştu", variant: "destructive" });
     },
   });
 
-  const onSubmit = (data: InsertTransaction) => {
-    createMutation.mutate(data);
-  };
-
   const handleAssetChange = (assetId: string) => {
-    const selectedAsset = assets?.find((a) => a.id === assetId);
+    const selectedAsset = assets?.find(a => a.id === assetId);
     if (selectedAsset) {
       form.setValue("currency", selectedAsset.currency);
+      form.setValue("price", Number(selectedAsset.currentPrice).toFixed(8));
     }
   };
 
@@ -91,12 +110,10 @@ export function AddTransactionDialog({ open, onOpenChange }: AddTransactionDialo
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[525px]" data-testid="dialog-add-transaction">
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)}>
+          <form onSubmit={form.handleSubmit(data => createMutation.mutate(data))}>
             <DialogHeader>
               <DialogTitle>Yeni İşlem Ekle</DialogTitle>
-              <DialogDescription>
-                Alım veya satım işlemi kaydedin
-              </DialogDescription>
+              <DialogDescription>Alım veya satım işlemi kaydedin</DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <FormField
@@ -105,11 +122,8 @@ export function AddTransactionDialog({ open, onOpenChange }: AddTransactionDialo
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Varlık</FormLabel>
-                    <Select 
-                      onValueChange={(value) => {
-                        field.onChange(value);
-                        handleAssetChange(value);
-                      }} 
+                    <Select
+                      onValueChange={v => { field.onChange(v); handleAssetChange(v); }}
                       defaultValue={field.value}
                     >
                       <FormControl>
@@ -118,7 +132,7 @@ export function AddTransactionDialog({ open, onOpenChange }: AddTransactionDialo
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {assets?.map((asset) => (
+                        {assets?.map(asset => (
                           <SelectItem key={asset.id} value={asset.id}>
                             {asset.name} ({asset.symbol})
                           </SelectItem>
@@ -173,9 +187,23 @@ export function AddTransactionDialog({ open, onOpenChange }: AddTransactionDialo
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Fiyat</FormLabel>
-                      <FormControl>
-                        <Input type="number" step="0.01" placeholder="0.00" {...field} data-testid="input-transaction-price" />
-                      </FormControl>
+                      <div className="flex gap-2">
+                        <FormControl>
+                          <Input type="number" step="0.00000001" placeholder="0.00" {...field} data-testid="input-transaction-price" />
+                        </FormControl>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={fetchCurrentPrice}
+                          disabled={isFetchingPrice || !selectedAssetId}
+                          title="Güncel fiyatı API'den çek"
+                          data-testid="button-fetch-price"
+                          className="flex-shrink-0"
+                        >
+                          <RefreshCw className={`h-4 w-4 ${isFetchingPrice ? "animate-spin" : ""}`} />
+                        </Button>
+                      </div>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -189,14 +217,14 @@ export function AddTransactionDialog({ open, onOpenChange }: AddTransactionDialo
                   <FormItem>
                     <FormLabel>Toplam Tutar</FormLabel>
                     <FormControl>
-                      <Input 
-                        type="number" 
-                        step="0.01" 
-                        placeholder="0.00" 
-                        {...field} 
-                        readOnly 
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="0.00"
+                        {...field}
+                        readOnly
                         className="bg-muted"
-                        data-testid="input-total-amount" 
+                        data-testid="input-total-amount"
                       />
                     </FormControl>
                     <FormMessage />
@@ -214,7 +242,7 @@ export function AddTransactionDialog({ open, onOpenChange }: AddTransactionDialo
                       <Input
                         type="date"
                         value={field.value.split("T")[0]}
-                        onChange={(e) => field.onChange(e.target.value + "T12:00:00.000Z")}
+                        onChange={e => field.onChange(e.target.value + "T12:00:00.000Z")}
                         data-testid="input-transaction-date"
                       />
                     </FormControl>
@@ -230,11 +258,11 @@ export function AddTransactionDialog({ open, onOpenChange }: AddTransactionDialo
                   <FormItem>
                     <FormLabel>Notlar (Opsiyonel)</FormLabel>
                     <FormControl>
-                      <Textarea 
-                        placeholder="İşlem hakkında notlar..." 
-                        {...field} 
+                      <Textarea
+                        placeholder="İşlem hakkında notlar..."
+                        {...field}
                         value={field.value || ""}
-                        data-testid="textarea-notes" 
+                        data-testid="textarea-notes"
                       />
                     </FormControl>
                     <FormMessage />

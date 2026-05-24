@@ -404,6 +404,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Budget balance performance over time
+  app.get("/api/budget/performance", async (req, res) => {
+    try {
+      const period = (req.query.period as string) || "monthly";
+      const [incomes, expenses] = await Promise.all([storage.getIncomes(), storage.getExpenses()]);
+      const now = new Date();
+
+      const MONTH_NAMES = ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
+
+      type Point = { label: string; end: Date };
+      const points: Point[] = [];
+
+      if (period === "monthly") {
+        for (let i = 29; i >= 0; i--) {
+          const d = new Date(now); d.setDate(d.getDate() - i);
+          const end = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59);
+          points.push({ label: `${d.getDate()}.${d.getMonth() + 1}`, end });
+        }
+      } else if (period === "quarterly") {
+        for (let i = 11; i >= 0; i--) {
+          const d = new Date(now); d.setDate(d.getDate() - i * 7);
+          const end = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59);
+          points.push({ label: `H${12 - i}`, end });
+        }
+      } else {
+        for (let i = 11; i >= 0; i--) {
+          const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+          const end = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59);
+          points.push({ label: MONTH_NAMES[d.getMonth()], end });
+        }
+      }
+
+      const result = points.map(point => {
+        const incomeTotal = incomes.filter(inc => new Date(inc.date) <= point.end).reduce((s, inc) => s + parseFloat(inc.amount), 0);
+        const expenseTotal = expenses.filter(exp => new Date(exp.date) <= point.end).reduce((s, exp) => s + parseFloat(exp.amount), 0);
+        return { month: point.label, value: incomeTotal - expenseTotal };
+      });
+
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch budget performance" });
+    }
+  });
+
   // Debt routes
   app.get("/api/debts", async (req, res) => {
     try {

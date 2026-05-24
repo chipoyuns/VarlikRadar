@@ -1,12 +1,13 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Plus, RefreshCw, Eye, EyeOff, Shield, Bitcoin, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, BarChart3, FileText, FileSpreadsheet, Heart, Target, Layers, AlertTriangle, CheckCircle } from "lucide-react";
-import { useState, useMemo } from "react";
+import { Plus, RefreshCw, Eye, EyeOff, Shield, Bitcoin, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, BarChart3, FileText, FileSpreadsheet, Target, Layers, Pencil, Check, X } from "lucide-react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { exportAssetsToPDF, exportAssetsToExcel } from "@/lib/export-utils";
 import type { BudgetSummary } from "@shared/schema";
 import { AddAssetDialog } from "@/components/add-asset-dialog";
 import { AssetTable } from "@/components/asset-table";
 import { AssetAllocationChart } from "@/components/asset-allocation-chart";
 import { MonthlyPerformanceChart } from "@/components/monthly-performance-chart";
+import { PortfolioHealthScore } from "@/components/portfolio-health-score";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useDisplayCurrency } from "@/lib/currency-context";
@@ -67,13 +68,33 @@ export default function Dashboard() {
   const [assetSearch, setAssetSearch] = useState("");
   const [assetTypeFilter, setAssetTypeFilter] = useState<string>("all");
   const [privacyMode, setPrivacyMode] = useState(false);
+  const [portfolioTitle, setPortfolioTitle] = useState(() => localStorage.getItem("portfolio_title") || "Portföyüm");
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editTitleValue, setEditTitleValue] = useState(portfolioTitle);
+  const titleInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const { formatDisplayCurrency, displayCurrency, isLoadingRates } = useDisplayCurrency();
+
+  useEffect(() => {
+    if (isEditingTitle && titleInputRef.current) {
+      titleInputRef.current.focus();
+      titleInputRef.current.select();
+    }
+  }, [isEditingTitle]);
+
+  const saveTitle = () => {
+    const clean = editTitleValue.replace(/[^a-zA-Z0-9ğüşıöçĞÜŞİÖÇ\s]/g, "").trim();
+    const val = clean || "Portföyüm";
+    setPortfolioTitle(val);
+    localStorage.setItem("portfolio_title", val);
+    setIsEditingTitle(false);
+  };
 
   const { data: summary, isLoading: summaryLoading } = useQuery<PortfolioSummary>({ queryKey: ["/api/portfolio/summary"] });
   const { data: assets, isLoading: assetsLoading } = useQuery<AssetDetail[]>({ queryKey: ["/api/portfolio/details"] });
   const { data: allocation, isLoading: allocationLoading } = useQuery<AssetAllocation[]>({ queryKey: ["/api/portfolio/allocation"] });
-  const { data: performance, isLoading: performanceLoading } = useQuery<MonthlyPerformance[]>({ queryKey: [`/api/portfolio/performance?period=${perfPeriod}`] });
+  const { data: performance } = useQuery<MonthlyPerformance[]>({ queryKey: [`/api/portfolio/performance?period=${perfPeriod}`] });
+  const { data: budgetPerformance, isLoading: budgetPerfLoading } = useQuery<MonthlyPerformance[]>({ queryKey: [`/api/budget/performance?period=${perfPeriod}`] });
   const { data: budgetSummary } = useQuery<BudgetSummary>({ queryKey: ["/api/budget/summary"] });
 
   const updatePricesMutation = useMutation({
@@ -135,49 +156,6 @@ export default function Dashboard() {
       riskHex: hex, volatility: vol, topConcentration: topConc, sparklineData: sparkData };
   }, [assets, allocation, performance]);
 
-  /* Portföy Sağlık Puanı hesaplama */
-  const healthScore = useMemo(() => {
-    const all = assets || [];
-    if (all.length === 0) return { score: 0, grade: "—", color: "#4E5A6B", items: [] };
-
-    let score = 100;
-    const items: { label: string; desc: string; ok: boolean }[] = [];
-
-    // Çeşitlendirme
-    const types = new Set(all.map(a => a.type)).size;
-    const diversified = types >= 3;
-    items.push({ label: "Çeşitlendirme", desc: diversified ? `${types} farklı varlık türü` : `Sadece ${types} tür — çeşitlendirin`, ok: diversified });
-    if (!diversified) score -= 20;
-
-    // Kripto yoğunluğu
-    const cryptoOk = cryptoWeight <= 40;
-    items.push({ label: "Kripto Ağırlığı", desc: cryptoOk ? `%${cryptoWeight.toFixed(0)} — dengeli` : `%${cryptoWeight.toFixed(0)} — çok yüksek`, ok: cryptoOk });
-    if (!cryptoOk) score -= 25;
-
-    // Konsantrasyon riski
-    const concOk = topConcentration <= 60;
-    items.push({ label: "Konsantrasyon Riski", desc: concOk ? `En büyük pozisyon %${topConcentration.toFixed(0)}` : `Tek varlık %${topConcentration.toFixed(0)} — riskli`, ok: concOk });
-    if (!concOk) score -= 20;
-
-    // Volatilite
-    const volOk = volatility <= 10;
-    items.push({ label: "Volatilite", desc: volOk ? `Ortalama %${volatility.toFixed(1)} — düşük` : `Ortalama %${volatility.toFixed(1)} — yüksek`, ok: volOk });
-    if (!volOk) score -= 15;
-
-    // Varlık sayısı
-    const countOk = all.length >= 5;
-    items.push({ label: "Varlık Sayısı", desc: countOk ? `${all.length} varlık — iyi` : `${all.length} varlık — az`, ok: countOk });
-    if (!countOk) score -= 10;
-
-    score = Math.max(0, Math.min(100, score));
-    let grade = "A+", color = "#00D4AA";
-    if (score < 40) { grade = "D"; color = "#FF4757"; }
-    else if (score < 55) { grade = "C"; color = "#FF8E53"; }
-    else if (score < 70) { grade = "B"; color = "#FFB833"; }
-    else if (score < 85) { grade = "A"; color = "#00D4AA"; }
-
-    return { score, grade, color, items };
-  }, [assets, cryptoWeight, topConcentration, volatility]);
 
   /* Bütçe Toplam Bakiye */
   const kasaValue = useMemo(() => parseFloat(localStorage.getItem("toplam_kasa") || "0"), []);
@@ -220,15 +198,47 @@ export default function Dashboard() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-semibold text-[#F0F2F7]" data-testid="heading-portfolio">Portföyüm</h1>
-            <button
-              onClick={() => setPrivacyMode(v => !v)}
-              className="p-1.5 rounded-lg hover:bg-[rgba(255,255,255,0.04)] transition-colors text-[#4E5A6B] hover:text-[#F0F2F7]"
-              data-testid="button-privacy-toggle"
-            >
-              {privacyMode ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-            </button>
+          <div className="flex items-center gap-2">
+            {isEditingTitle ? (
+              <div className="flex items-center gap-2">
+                <input
+                  ref={titleInputRef}
+                  value={editTitleValue}
+                  onChange={e => setEditTitleValue(e.target.value.replace(/[^a-zA-Z0-9ğüşıöçĞÜŞİÖÇ\s]/g, ""))}
+                  onKeyDown={e => { if (e.key === "Enter") saveTitle(); if (e.key === "Escape") { setIsEditingTitle(false); setEditTitleValue(portfolioTitle); } }}
+                  className="text-2xl font-semibold text-[#F0F2F7] bg-transparent border-b border-[#00D4AA] outline-none focus:border-[#00D4AA] w-52"
+                  maxLength={30}
+                  data-testid="input-portfolio-title"
+                />
+                <button onClick={saveTitle} className="p-1.5 rounded-lg text-[#00D4AA] hover:bg-[rgba(0,212,170,0.08)] transition-colors" data-testid="button-save-title">
+                  <Check className="h-4 w-4" />
+                </button>
+                <button onClick={() => { setIsEditingTitle(false); setEditTitleValue(portfolioTitle); }} className="p-1.5 rounded-lg text-[#4E5A6B] hover:bg-[rgba(255,255,255,0.04)] transition-colors" data-testid="button-cancel-title">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            ) : (
+              <h1 className="text-2xl font-semibold text-[#F0F2F7]" data-testid="heading-portfolio">{portfolioTitle}</h1>
+            )}
+            {!isEditingTitle && (
+              <button
+                onClick={() => { setIsEditingTitle(true); setEditTitleValue(portfolioTitle); }}
+                className="p-1.5 rounded-lg hover:bg-[rgba(255,255,255,0.04)] transition-colors text-[#4E5A6B] hover:text-[#F0F2F7]"
+                title="Başlığı düzenle"
+                data-testid="button-edit-title"
+              >
+                <Pencil className="h-4 w-4" />
+              </button>
+            )}
+            {!isEditingTitle && (
+              <button
+                onClick={() => setPrivacyMode(v => !v)}
+                className="p-1.5 rounded-lg hover:bg-[rgba(255,255,255,0.04)] transition-colors text-[#4E5A6B] hover:text-[#F0F2F7]"
+                data-testid="button-privacy-toggle"
+              >
+                {privacyMode ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            )}
           </div>
           <p className="text-sm text-[#8892A4] mt-1">
             Yatırımlarınızı tek platformda yönetin
@@ -396,9 +406,9 @@ export default function Dashboard() {
               <p className="text-xl font-bold mt-0.5 font-mono" style={{ color: riskHex }}>{riskLabel}</p>
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-6 flex-1">
-            <div className="flex flex-col items-center gap-1">
-              <p className="text-xs text-[#4E5A6B]">Risk Skoru</p>
+          <div className="flex flex-wrap items-center justify-center gap-6 flex-1">
+            <div className="flex flex-col items-center gap-1 text-center">
+              <p className="text-xs text-[#4E5A6B] text-center">Risk Skoru</p>
               <div className="flex items-center gap-2">
                 <span className="text-lg font-bold font-mono" style={{ color: riskHex }}>{riskScore.toFixed(1)}/10</span>
                 <div className="flex gap-1">
@@ -408,21 +418,21 @@ export default function Dashboard() {
                 </div>
               </div>
             </div>
-            <div className="flex flex-col items-center gap-1">
-              <p className="text-xs text-[#4E5A6B]">Kripto Ağırlığı</p>
+            <div className="flex flex-col items-center gap-1 text-center">
+              <p className="text-xs text-[#4E5A6B] text-center">Kripto Ağırlığı</p>
               <p className="text-lg font-bold font-mono text-[#F0F2F7]">%{cryptoWeight.toFixed(1)}</p>
             </div>
-            <div className="flex flex-col items-center gap-1">
-              <p className="text-xs text-[#4E5A6B]">Volatilite</p>
+            <div className="flex flex-col items-center gap-1 text-center">
+              <p className="text-xs text-[#4E5A6B] text-center">Volatilite</p>
               <p className="text-lg font-bold font-mono text-[#F0F2F7]">{volatility.toFixed(1)}%</p>
-              <p className="text-xs text-[#4E5A6B]">Ortalama değişim</p>
+              <p className="text-xs text-[#4E5A6B] text-center">Ortalama değişim</p>
             </div>
-            <div className="flex flex-col items-center gap-1">
-              <p className="text-xs text-[#4E5A6B]">Konsantrasyon</p>
+            <div className="flex flex-col items-center gap-1 text-center">
+              <p className="text-xs text-[#4E5A6B] text-center">Konsantrasyon</p>
               <p className="text-lg font-bold font-mono text-[#F0F2F7]">%{topConcentration.toFixed(1)}</p>
-              <p className="text-xs text-[#4E5A6B]">En büyük pozisyon</p>
+              <p className="text-xs text-[#4E5A6B] text-center">En büyük pozisyon</p>
             </div>
-            <div className="ml-auto flex items-center">
+            <div className="flex items-center">
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg" style={{ backgroundColor: `${riskHex}15` }}>
                 <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: riskHex }} />
                 <span className="text-sm font-medium" style={{ color: riskHex }}>Dengeli portföy</span>
@@ -488,10 +498,10 @@ export default function Dashboard() {
               ))}
             </div>
           </div>
-          {performanceLoading ? (
+          {budgetPerfLoading ? (
             <div className="h-[220px] skeleton-shimmer" />
           ) : (
-            <MonthlyPerformanceChart data={performance || []} />
+            <MonthlyPerformanceChart data={budgetPerformance || []} />
           )}
         </div>
       </div>
@@ -562,51 +572,12 @@ export default function Dashboard() {
       </div>
 
       {/* Portföy Sağlık Puanı */}
-      <div className="finos-card p-5">
-        <div className="flex items-center gap-2 mb-5">
-          <div className="p-1.5 rounded-lg" style={{ backgroundColor: `${healthScore.color}15` }}>
-            <Heart className="h-4 w-4" style={{ color: healthScore.color }} />
-          </div>
-          <h3 className="text-sm font-semibold text-[#F0F2F7]">Portföy Sağlık Puanı</h3>
-        </div>
-        <div className="flex flex-col lg:flex-row gap-6">
-          {/* Puan Göstergesi */}
-          <div className="flex flex-col items-center justify-center gap-2 lg:w-48 flex-shrink-0">
-            <div className="relative w-32 h-32">
-              <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90">
-                <circle cx="60" cy="60" r="50" fill="none" stroke="#151A23" strokeWidth="10" />
-                <circle cx="60" cy="60" r="50" fill="none" stroke={healthScore.color} strokeWidth="10"
-                  strokeDasharray={`${(healthScore.score / 100) * 314} 314`}
-                  strokeLinecap="round"
-                  style={{ transition: "stroke-dasharray 1s ease" }}
-                />
-              </svg>
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-3xl font-black font-mono" style={{ color: healthScore.color }}>{healthScore.grade}</span>
-                <span className="text-xs text-[#4E5A6B]">{healthScore.score}/100</span>
-              </div>
-            </div>
-            <p className="text-sm font-medium text-center" style={{ color: healthScore.color }}>
-              {healthScore.score >= 85 ? "Mükemmel Portföy" : healthScore.score >= 70 ? "İyi Portföy" : healthScore.score >= 55 ? "Geliştirilmeli" : healthScore.score >= 40 ? "Zayıf" : assets?.length === 0 ? "Varlık Yok" : "Riskli"}
-            </p>
-          </div>
-          {/* Metrikler */}
-          <div className="grid gap-3 flex-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-            {healthScore.items.map((item, i) => (
-              <div key={i} className="finos-card-inner p-3 rounded-xl flex flex-col gap-1.5">
-                <div className="flex items-center gap-1.5">
-                  {item.ok
-                    ? <CheckCircle className="h-3.5 w-3.5 text-[#00D4AA] flex-shrink-0" />
-                    : <AlertTriangle className="h-3.5 w-3.5 text-[#FFB833] flex-shrink-0" />
-                  }
-                  <p className="text-xs font-medium text-[#F0F2F7]">{item.label}</p>
-                </div>
-                <p className="text-xs text-[#8892A4] leading-relaxed">{item.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+      <PortfolioHealthScore
+        assets={assets || []}
+        budgetSummary={budgetSummary}
+        portfolioSummary={summary}
+        privacyMode={privacyMode}
+      />
 
       <AddAssetDialog open={isAddAssetOpen} onOpenChange={setIsAddAssetOpen} />
     </div>

@@ -3,8 +3,8 @@ import { pgTable, text, varchar, decimal, timestamp, integer } from "drizzle-orm
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// Varlık türleri: Hisse, ETF, Kripto, Madeni Para
-export const assetTypeEnum = z.enum(["hisse", "etf", "kripto", "madeni_para"]);
+// Varlık türleri: Hisse, ETF, Kripto, Madeni Para, Fon
+export const assetTypeEnum = z.enum(["hisse", "etf", "kripto", "madeni_para", "fon"]);
 export type AssetType = z.infer<typeof assetTypeEnum>;
 
 // Borsa türleri: BIST (Borsa İstanbul), US (Amerikan Borsası), Diğer
