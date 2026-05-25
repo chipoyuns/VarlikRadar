@@ -105,6 +105,13 @@ export default function Budget() {
 
   const incomeForm = useForm({ resolver: zodResolver(incomeFormSchema), defaultValues: { category: "maaş", description: "", amount: 0, currency: "TRY", date: new Date(), isRecurring: 0 } });
   const expenseForm = useForm({ resolver: zodResolver(expenseFormSchema), defaultValues: { category: "market", description: "", amount: 0, currency: "TRY", date: new Date(), isRecurring: 0 } });
+
+  // Gider formu için local state (react-hook-form controlled number alanı sorununu çözer)
+  const todayStr = new Date().toISOString().split("T")[0];
+  const [expCat, setExpCat] = useState("market");
+  const [expDesc, setExpDesc] = useState("");
+  const [expAmount, setExpAmount] = useState("");
+  const [expDate, setExpDate] = useState(todayStr);
   const subForm = useForm({ resolver: zodResolver(subscriptionFormSchema), defaultValues: { name: "", logo: "", color: "#4B9EFF", price: 0, billingDay: 1, category: "dijital", isActive: 1 } });
 
   const createIncomeMutation = useMutation({
@@ -113,10 +120,23 @@ export default function Budget() {
     onError: () => toast({ title: "Hata", description: "Gelir eklenemedi", variant: "destructive" }),
   });
   const createExpenseMutation = useMutation({
-    mutationFn: async (data: z.infer<typeof expenseFormSchema>) => { const r = await apiRequest("POST", "/api/expenses", { ...data, amount: data.amount.toString() }); return r.json(); },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/expenses"] }); queryClient.invalidateQueries({ queryKey: ["/api/budget/summary"] }); expenseForm.reset({ category: "market", description: "", amount: 0, currency: "TRY", date: new Date(), isRecurring: 0 }); toast({ title: "Başarılı", description: "Gider eklendi" }); },
+    mutationFn: async (data: { category: string; description: string; amount: string; currency: string; date: Date; isRecurring: number }) => { const r = await apiRequest("POST", "/api/expenses", data); return r.json(); },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/expenses"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/budget/summary"] });
+      setExpCat("market"); setExpDesc(""); setExpAmount(""); setExpDate(new Date().toISOString().split("T")[0]);
+      toast({ title: "Başarılı", description: "Gider eklendi" });
+    },
     onError: () => toast({ title: "Hata", description: "Gider eklenemedi", variant: "destructive" }),
   });
+
+  const handleAddExpense = () => {
+    const amt = parseFloat(expAmount);
+    if (!expAmount || isNaN(amt) || amt <= 0) {
+      toast({ title: "Hata", description: "Geçerli bir tutar giriniz", variant: "destructive" }); return;
+    }
+    createExpenseMutation.mutate({ category: expCat, description: expDesc, amount: amt.toString(), currency: "TRY", date: new Date(expDate), isRecurring: 0 });
+  };
   const deleteIncomeMutation = useMutation({
     mutationFn: async (id: string) => { await apiRequest("DELETE", `/api/incomes/${id}`); },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/incomes"] }); queryClient.invalidateQueries({ queryKey: ["/api/budget/summary"] }); toast({ title: "Başarılı", description: "Gelir silindi" }); },
@@ -544,58 +564,57 @@ export default function Budget() {
             </form>
           </Form>
         ) : (
-          <Form {...expenseForm}>
-            <form onSubmit={expenseForm.handleSubmit(data => createExpenseMutation.mutate(data))} className="grid gap-3 sm:grid-cols-5">
-              <FormField control={expenseForm.control} name="category" render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-xs text-[#8892A4]">Kategori</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger className="bg-[#0E1117] border-[rgba(255,255,255,0.06)] text-[#F0F2F7] h-9" data-testid="select-expense-category"><SelectValue /></SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {expenseCategories.map(cat => <SelectItem key={cat} value={cat}>{expenseCategoryLabels[cat]}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )} />
-              <FormField control={expenseForm.control} name="description" render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-xs text-[#8892A4]">Açıklama</FormLabel>
-                  <FormControl>
-                    <FinosInput placeholder="Açıklama" {...field} data-testid="input-expense-description" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
-              <FormField control={expenseForm.control} name="amount" render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-xs text-[#8892A4]">Tutar (₺)</FormLabel>
-                  <FormControl>
-                    <FinosInput type="number" step="0.01" min="0" {...field} data-testid="input-expense-amount" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
-              <FormField control={expenseForm.control} name="date" render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-xs text-[#8892A4]">Tarih</FormLabel>
-                  <FormControl>
-                    <FinosInput type="date" value={fmtDateForInput(field.value)} onChange={e => field.onChange(new Date(e.target.value))} data-testid="input-expense-date" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
-              <div className="flex items-end">
-                <button type="submit" disabled={createExpenseMutation.isPending}
-                  className="flex items-center gap-2 px-4 py-2 bg-[#FF4757] rounded-lg text-sm font-medium text-white hover:bg-[#FF4757]/90 transition-colors disabled:opacity-50 w-full justify-center"
-                  data-testid="button-add-expense">
-                  {createExpenseMutation.isPending ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Ekle
-                </button>
-              </div>
-            </form>
-          </Form>
+          <div className="grid gap-3 sm:grid-cols-5">
+            <div>
+              <label className="text-xs text-[#8892A4] block mb-1">Kategori</label>
+              <Select value={expCat} onValueChange={setExpCat}>
+                <SelectTrigger className="bg-[#0E1117] border-[rgba(255,255,255,0.06)] text-[#F0F2F7] h-9" data-testid="select-expense-category"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {expenseCategories.map(cat => <SelectItem key={cat} value={cat}>{expenseCategoryLabels[cat]}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-xs text-[#8892A4] block mb-1">Açıklama</label>
+              <FinosInput
+                placeholder="Açıklama"
+                value={expDesc}
+                onChange={e => setExpDesc(e.target.value)}
+                data-testid="input-expense-description"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-[#8892A4] block mb-1">Tutar (₺)</label>
+              <FinosInput
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="0.00"
+                value={expAmount}
+                onChange={e => setExpAmount(e.target.value)}
+                data-testid="input-expense-amount"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-[#8892A4] block mb-1">Tarih</label>
+              <FinosInput
+                type="date"
+                value={expDate}
+                onChange={e => setExpDate(e.target.value)}
+                data-testid="input-expense-date"
+              />
+            </div>
+            <div className="flex items-end">
+              <button
+                type="button"
+                onClick={handleAddExpense}
+                disabled={createExpenseMutation.isPending}
+                className="flex items-center gap-2 px-4 py-2 bg-[#FF4757] rounded-lg text-sm font-medium text-white hover:bg-[#FF4757]/90 transition-colors disabled:opacity-50 w-full justify-center"
+                data-testid="button-add-expense">
+                {createExpenseMutation.isPending ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Ekle
+              </button>
+            </div>
+          </div>
         )}
       </div>
 

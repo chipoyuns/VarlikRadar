@@ -409,6 +409,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const period = (req.query.period as string) || "monthly";
       const kasaValue = parseFloat((req.query.kasaValue as string) || "0") || 0;
+      const portfolioKarZarar = parseFloat((req.query.portfolioKarZarar as string) || "0") || 0;
       const [allIncomes, allExpenses] = await Promise.all([storage.getIncomes(), storage.getExpenses()]);
       const now = new Date();
 
@@ -440,7 +441,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const result = points.map(point => {
         const incomeTotal = allIncomes.filter(inc => new Date(inc.date) <= point.end).reduce((s, inc) => s + parseFloat(inc.amount), 0);
         const expenseTotal = allExpenses.filter(exp => new Date(exp.date) <= point.end).reduce((s, exp) => s + parseFloat(exp.amount), 0);
-        return { month: point.label, value: kasaValue + incomeTotal - expenseTotal };
+        return { month: point.label, value: kasaValue + incomeTotal + portfolioKarZarar - expenseTotal };
       });
 
       res.json(result);

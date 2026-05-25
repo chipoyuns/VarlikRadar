@@ -134,6 +134,9 @@ export function AddAssetDialog({ open, onOpenChange }: AddAssetDialogProps) {
                           if (val === "kripto") {
                             form.setValue("market", "Binance");
                             form.setValue("currency", "USD");
+                          } else if (val === "fon") {
+                            form.setValue("market", "TEFAS");
+                            form.setValue("currency", "TRY");
                           } else {
                             form.setValue("market", "BIST");
                             form.setValue("currency", "TRY");
@@ -175,6 +178,11 @@ export function AddAssetDialog({ open, onOpenChange }: AddAssetDialogProps) {
                           {selectedType === "kripto" ? (
                             <>
                               <SelectItem value="Binance">Binance</SelectItem>
+                              <SelectItem value="Diğer">Diğer</SelectItem>
+                            </>
+                          ) : selectedType === "fon" ? (
+                            <>
+                              <SelectItem value="TEFAS">TEFAS (Türkiye)</SelectItem>
                               <SelectItem value="Diğer">Diğer</SelectItem>
                             </>
                           ) : (

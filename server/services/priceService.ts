@@ -91,37 +91,47 @@ export async function fetchYahooPrice(symbol: string, market: string): Promise<n
 export async function fetchTEFASPrice(symbol: string): Promise<number | null> {
   try {
     const upperSymbol = symbol.toUpperCase();
-    // Try last 7 days to handle weekends/holidays
-    for (let i = 0; i < 7; i++) {
+    const headers = {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      "Referer": "https://www.tefas.gov.tr/FonAnaliz.aspx",
+      "Accept": "application/json, text/javascript, */*; q=0.01",
+      "Accept-Language": "tr-TR,tr;q=0.9,en-US;q=0.8",
+      "X-Requested-With": "XMLHttpRequest",
+      "Origin": "https://www.tefas.gov.tr",
+    };
+
+    // Try last 10 days across both fund types (YAT = Yatırım Fonu, EMK = Emeklilik Fonu)
+    for (let i = 0; i < 10; i++) {
       const d = new Date();
       d.setDate(d.getDate() - i);
+      // Skip weekends
+      if (d.getDay() === 0 || d.getDay() === 6) continue;
       const year = d.getFullYear();
       const month = String(d.getMonth() + 1).padStart(2, "0");
       const day = String(d.getDate()).padStart(2, "0");
       const dateStr = `${year}${month}${day}`;
 
-      const url = `https://www.tefas.gov.tr/api/DB/BindHistoryInfo?fontip=YAT&sfonkod=${upperSymbol}&bastarih=${dateStr}&bittarih=${dateStr}`;
+      for (const fontip of ["YAT", "EMK"]) {
+        const url = `https://www.tefas.gov.tr/api/DB/BindHistoryInfo?fontip=${fontip}&sfonkod=${upperSymbol}&bastarih=${dateStr}&bittarih=${dateStr}`;
+        try {
+          const response = await fetch(url, { headers });
 
-      const response = await fetch(url, {
-        headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-          "Referer": "https://www.tefas.gov.tr/",
-          "Accept": "application/json, text/javascript, */*",
-        },
-      });
+          if (!response.ok) {
+            console.log(`TEFAS ${fontip} error for ${symbol} on ${dateStr}: ${response.status}`);
+            continue;
+          }
 
-      if (!response.ok) {
-        console.log(`TEFAS API error for ${symbol} on ${dateStr}: ${response.status}`);
-        continue;
-      }
+          const data: TEFASResponse = await response.json();
 
-      const data: TEFASResponse = await response.json();
-
-      if (data?.data && data.data.length > 0) {
-        const price = parseFloat(data.data[0].FIYAT);
-        if (!isNaN(price) && price > 0) {
-          console.log(`TEFAS price for ${symbol}: ${price} (date: ${dateStr})`);
-          return price;
+          if (data?.data && data.data.length > 0) {
+            const price = parseFloat(data.data[0].FIYAT);
+            if (!isNaN(price) && price > 0) {
+              console.log(`TEFAS price for ${symbol} (${fontip}): ${price} (date: ${dateStr})`);
+              return price;
+            }
+          }
+        } catch (innerErr) {
+          console.log(`TEFAS fetch failed for ${symbol} ${fontip} ${dateStr}`);
         }
       }
     }
