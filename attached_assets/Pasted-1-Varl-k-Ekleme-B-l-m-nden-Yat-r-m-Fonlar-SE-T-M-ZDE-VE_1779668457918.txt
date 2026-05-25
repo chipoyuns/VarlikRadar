@@ -1,0 +1,10 @@
+1 Varlık Ekleme Bölümünden Yatırım Fonları SEÇTİĞİMİZDE VE FON SEMBOLÜ girdiğimizde fon fiyatı getirmiyor bunu ücretsiz bir apiden çek sana bırakıyorum  Örnek Fon Sembolleri  :  AAL, AES,BHL bu türkiye fon alış fiyatlarını mynet veya yahonun apisinden bulabilirsen oradan al yoksa olanaklarına bak
+2- Portföy sayfasındaki Bütçe Bakiyesi Performansı grafiğinin günlük haftalık ve aylık verilerini bütçe sayfasının üst bölümündeki toplam bakiye bölümü verisinden alsın o veri şu şekilde oluşuyor (Toplam Kasa + Toplam Gelir + Portföy Kar/Zarar - Toplam Gider = Toplam Bakiye)
+3- Bütçe Safasında çalışmayan hiçbirşey kalmasın Gelir Ekle Gider Ekle Bölümler Profesyonel Çalışsın, Abonelikleri Biz Ekleyebilelim Herkezin Abonelikleri Farklı olur , Diğer herşeyi sen aktif ççalışıyor hale getir 
+4- Bütçe Sayfasında Abonelik ekle değimizde abonelikler blümüne eklemiyor 
+5- Bütçe Bakiyesi Performansı grafiğinin solundaki yazılar  25K, 50K, 75K, 100K rakamları ve sağa doğru giden aylar günller haftaları beyaz yap beyaz yap görelim Haz , Tem, Ağu, Eyl
+6- Bütçe Sayfasında Gelirler mensünün yanındaki Giderler menüsünde Borç Eklemeye çalıştığımda ekeme yapamıyorum açıklamaya rakamlara bir şey yazılmıyor ve eklenmiyor bunu düzelt ve çalışır hale getir
+7- Bütçe Sayfasında Gidere eklenen rakamlar otomatikmen Zarflama Sistemi'ne gider olarak eklensin 
+8- Hedefler Sayfasını  Sana yüklediğim Hedefler word dosyasındaki gibi birebir yapmanı istiyorum sana dosyada sayfanın nasıl işleyeceği konusunda detaylı bilgi veriyor kodlama bittiğinde sayfada çalışmayan işlemeyen bir yer kalmasın
+9- Borçlar Sayfasını  Sana yüklediğim Borçlar word dosyasındaki gibi birebir yapmanı istiyorum sana dosyada sayfanın nasıl işleyeceği konusunda detaylı bilgi veriyor kodlama bittiğinde sayfada çalışmayan işlemeyen bir yer kalmasın
+10- Raporlar Sayfasını  Sana yüklediğim Raporlar word dosyasındaki gibi birebir yapmanı istiyorum sana dosyada sayfanın nasıl işleyeceği konusunda detaylı bilgi veriyor kodlama bittiğinde sayfada çalışmayan işlemeyen bir yer kalmasın

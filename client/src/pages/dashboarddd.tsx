@@ -477,61 +477,33 @@ export default function Dashboard() {
         </div>
 
         {/* Bütçe Bakiyesi Performansı */}
-       
-         <div className="finos-card p-5">
-
+        <div className="finos-card p-5">
           <div className="flex items-start justify-between mb-3">
-
             <div>
-
               <h3 className="text-sm font-semibold text-[#F0F2F7]">Bütçe Bakiyesi Performansı</h3>
-
               <div className="flex items-baseline gap-2 mt-1">
-
                 <span className={`text-2xl font-bold font-mono ${totalBakiye >= 0 ? "text-[#00D4AA]" : "text-[#FF4757]"}`}>
-
                   {privacyMode ? "•••••" : totalBakiye.toLocaleString("tr-TR", { style: "currency", currency: "TRY", maximumFractionDigits: 0 })}
-
                 </span>
-
                 <span className="text-xs text-[#4E5A6B]">Toplam Bakiye</span>
-
               </div>
-
             </div>
-
             <div className="flex gap-1">
-
               {["monthly", "quarterly", "yearly"].map(p => (
-
                 <button key={p} onClick={() => setPerfPeriod(p)}
-
                   className="px-2.5 py-1 rounded-lg text-xs font-medium transition-all"
-
                   style={{ background: perfPeriod === p ? "#00D4AA" : "rgba(255,255,255,0.04)", color: perfPeriod === p ? "#080A0F" : "#8892A4" }}>
-
                   {p === "monthly" ? "Günlük" : p === "quarterly" ? "Haftalık" : "Aylık"}
-
                 </button>
-
               ))}
-
             </div>
-
           </div>
-
           {budgetPerfLoading ? (
-
             <div className="h-[220px] skeleton-shimmer" />
-
           ) : (
-
             <MonthlyPerformanceChart data={budgetPerformance || []} />
-
           )}
-
         </div>
-
       </div>
 
       {/* Asset Table */}

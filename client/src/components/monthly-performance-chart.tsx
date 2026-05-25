@@ -1,6 +1,6 @@
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, ReferenceLine, Legend
+  ResponsiveContainer, ReferenceLine,
 } from "recharts";
 import type { MonthlyPerformance } from "@shared/schema";
 
@@ -17,7 +17,7 @@ export function MonthlyPerformanceChart({
 }: MonthlyPerformanceChartProps) {
   if (data.length === 0) {
     return (
-      <div className="flex items-center justify-center h-[300px] text-muted-foreground">
+      <div className="flex items-center justify-center h-[300px] text-[#4E5A6B] text-sm">
         Performans verisi bulunmamaktadır
       </div>
     );
@@ -32,25 +32,20 @@ export function MonthlyPerformanceChart({
     return v.toFixed(0);
   };
 
+  const hasNeg = data.some(d => d.value < 0);
+  const lineColor = hasNeg ? "#FF4757" : "#00D4AA";
+
   const CustomTooltip = ({ active, payload }: any) => {
-    if (active && payload && payload.length) {
-      const val = payload[0]?.value ?? 0;
-      const val2 = payload[1]?.value;
-      return (
-        <div className="bg-popover border border-popover-border rounded-md p-3 shadow-md space-y-1">
-          <p className="font-medium text-xs text-muted-foreground">{payload[0].payload.month}</p>
-          <p className="text-sm font-semibold" style={{ color: val >= 0 ? "hsl(158 84% 39%)" : "hsl(0 84% 60%)" }}>
-            Bütçe Bakiyesi: {formatTRY(val)}
-          </p>
-          {val2 !== undefined && (
-            <p className="text-sm font-semibold text-primary">
-              Toplam Bakiye: {formatTRY(val2)}
-            </p>
-          )}
-        </div>
-      );
-    }
-    return null;
+    if (!active || !payload?.length) return null;
+    const val = payload[0]?.value ?? 0;
+    return (
+      <div className="bg-[#1A1F2E] border border-[rgba(255,255,255,0.1)] rounded-xl p-3 shadow-xl">
+        <p className="text-xs text-[#8892A4] mb-1">{payload[0].payload.month}</p>
+        <p className="text-sm font-semibold font-mono" style={{ color: val >= 0 ? "#00D4AA" : "#FF4757" }}>
+          {formatTRY(val)}
+        </p>
+      </div>
+    );
   };
 
   return (
@@ -58,59 +53,58 @@ export function MonthlyPerformanceChart({
       <AreaChart data={data} margin={{ top: 8, right: 10, left: 0, bottom: 5 }}>
         <defs>
           <linearGradient id="gradPos" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="hsl(158 84% 39%)" stopOpacity={0.25} />
-            <stop offset="95%" stopColor="hsl(158 84% 39%)" stopOpacity={0.03} />
+            <stop offset="5%" stopColor="#00D4AA" stopOpacity={0.2} />
+            <stop offset="95%" stopColor="#00D4AA" stopOpacity={0.02} />
           </linearGradient>
           <linearGradient id="gradNeg" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="hsl(0 84% 60%)" stopOpacity={0.22} />
-            <stop offset="95%" stopColor="hsl(0 84% 60%)" stopOpacity={0.03} />
+            <stop offset="5%" stopColor="#FF4757" stopOpacity={0.2} />
+            <stop offset="95%" stopColor="#FF4757" stopOpacity={0.02} />
           </linearGradient>
         </defs>
 
-        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
+
         <XAxis
           dataKey="month"
-          stroke="hsl(var(--muted-foreground))"
-          fontSize={11}
+          tick={{ fill: "#F0F2F7", fontSize: 11 }}
           tickLine={false}
-          axisLine={false}
+          axisLine={{ stroke: "rgba(255,255,255,0.06)" }}
         />
         <YAxis
-          stroke="hsl(var(--muted-foreground))"
-          fontSize={11}
+          tick={{ fill: "#F0F2F7", fontSize: 11 }}
           tickLine={false}
           axisLine={false}
           tickFormatter={formatK}
           width={50}
         />
+
         <Tooltip content={<CustomTooltip />} />
 
         {referenceValue !== undefined && (
           <ReferenceLine
             y={referenceValue}
-            stroke="hsl(221 64% 45%)"
+            stroke="#4B9EFF"
             strokeDasharray="6 3"
             strokeWidth={1.5}
             label={{
-              value: referenceLabel || `Bakiye: ${formatK(referenceValue)}`,
+              value: referenceLabel || formatK(referenceValue),
               position: "insideTopRight",
               fontSize: 10,
-              fill: "hsl(221 64% 45%)",
+              fill: "#4B9EFF",
             }}
           />
         )}
 
-        <ReferenceLine y={0} stroke="hsl(var(--border))" strokeWidth={1} />
+        <ReferenceLine y={0} stroke="rgba(255,255,255,0.08)" strokeWidth={1} />
 
         <Area
           type="monotone"
           dataKey="value"
-          stroke={data.some(d => d.value < 0) ? "hsl(0 84% 60%)" : "hsl(158 84% 39%)"}
-          strokeWidth={2}
-          fill={data.some(d => d.value < 0) ? "url(#gradNeg)" : "url(#gradPos)"}
-          dot={{ r: 3, fill: data.some(d => d.value < 0) ? "hsl(0 84% 60%)" : "hsl(158 84% 39%)" }}
-          activeDot={{ r: 5 }}
-          name="Bütçe Bakiyesi"
+          stroke={lineColor}
+          strokeWidth={2.5}
+          fill={hasNeg ? "url(#gradNeg)" : "url(#gradPos)"}
+          dot={false}
+          activeDot={{ r: 5, fill: lineColor, stroke: "#080A0F", strokeWidth: 2 }}
         />
       </AreaChart>
     </ResponsiveContainer>
