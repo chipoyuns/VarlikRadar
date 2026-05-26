@@ -131,6 +131,10 @@ function applyAppearance(settings: AppearanceSettings) {
   root.style.setProperty("--app-font-size", fontSizeMap[settings.fontSize]);
   if (!settings.animations) root.style.setProperty("--transition-speed", "0ms");
   else root.style.removeProperty("--transition-speed");
+  const resolvedTheme = settings.theme === "system"
+    ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+    : (settings.theme ?? "dark");
+  root.setAttribute("data-theme", resolvedTheme);
 }
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────

@@ -4,45 +4,113 @@
 
 /* FinOS Dark Theme */
 :root {
-  --background: #080A0F;
-  --foreground: #F0F2F7;
-  --card: #0E1117;
-  --card-foreground: #F0F2F7;
-  --card-border: rgba(255,255,255,0.06);
-  --popover: #151A23;
-  --popover-foreground: #F0F2F7;
-  --popover-border: rgba(255,255,255,0.1);
-  --primary: #00D4AA;
+  /* Dynamic accent — overridden by JS from appearance settings */
+  --accent-primary: #00D4AA;
+  --accent-bg: rgba(0,212,170,0.08);
+  --accent-border: rgba(0,212,170,0.3);
+  --accent-glow: 0 0 20px rgba(0,212,170,0.2);
+
+  /* Theme colours — overridden by [data-theme="light"] below */
+  --bg-base: #080A0F;
+  --bg-card: #0E1117;
+  --bg-elevated: #151A23;
+  --text-primary: #F0F2F7;
+  --text-secondary: #8892A4;
+  --text-muted: #4E5A6B;
+  --border-subtle: rgba(255,255,255,0.06);
+  --border-moderate: rgba(255,255,255,0.10);
+
+  --background: var(--bg-base);
+  --foreground: var(--text-primary);
+  --card: var(--bg-card);
+  --card-foreground: var(--text-primary);
+  --card-border: var(--border-subtle);
+  --popover: var(--bg-elevated);
+  --popover-foreground: var(--text-primary);
+  --popover-border: var(--border-moderate);
+  --primary: var(--accent-primary);
   --primary-foreground: #080A0F;
-  --secondary: #151A23;
-  --secondary-foreground: #F0F2F7;
-  --muted: #151A23;
-  --muted-foreground: #8892A4;
-  --accent: #151A23;
-  --accent-foreground: #F0F2F7;
+  --secondary: var(--bg-elevated);
+  --secondary-foreground: var(--text-primary);
+  --muted: var(--bg-elevated);
+  --muted-foreground: var(--text-secondary);
+  --accent: var(--bg-elevated);
+  --accent-foreground: var(--text-primary);
   --destructive: #FF4757;
   --destructive-foreground: #F0F2F7;
-  --success: #00D4AA;
+  --success: var(--accent-primary);
   --success-foreground: #080A0F;
-  --border: rgba(255,255,255,0.06);
-  --input: #151A23;
-  --ring: #00D4AA;
+  --border: var(--border-subtle);
+  --input: var(--bg-elevated);
+  --ring: var(--accent-primary);
   --radius: 1rem;
-  --sidebar: #0E1117;
-  --sidebar-foreground: #F0F2F7;
-  --sidebar-primary: #00D4AA;
+  --sidebar: var(--bg-card);
+  --sidebar-foreground: var(--text-primary);
+  --sidebar-primary: var(--accent-primary);
   --sidebar-primary-foreground: #080A0F;
-  --sidebar-accent: rgba(0,212,170,0.08);
-  --sidebar-accent-foreground: #00D4AA;
-  --sidebar-border: rgba(255,255,255,0.06);
-  --sidebar-ring: #00D4AA;
-  --chart-1: #00D4AA;
+  --sidebar-accent: var(--accent-bg);
+  --sidebar-accent-foreground: var(--accent-primary);
+  --sidebar-border: var(--border-subtle);
+  --sidebar-ring: var(--accent-primary);
+  --chart-1: var(--accent-primary);
   --chart-2: #4B9EFF;
   --chart-3: #A78BFA;
   --chart-4: #FFB833;
   --chart-5: #FF4757;
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', 'Menlo', monospace;
+}
+
+/* ─── Light theme overrides ─────────────────────────────────────────────── */
+[data-theme="light"] {
+  --bg-base: #F0F4F8;
+  --bg-card: #FFFFFF;
+  --bg-elevated: #F8FAFC;
+  --text-primary: #0F172A;
+  --text-secondary: #475569;
+  --text-muted: #94A3B8;
+  --border-subtle: rgba(0,0,0,0.07);
+  --border-moderate: rgba(0,0,0,0.12);
+  --primary-foreground: #FFFFFF;
+}
+
+[data-theme="light"] body {
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+}
+
+[data-theme="light"] .finos-card {
+  background: var(--bg-card);
+  border-color: var(--border-subtle);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+[data-theme="light"] .finos-card:hover {
+  border-color: var(--border-moderate);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+}
+[data-theme="light"] .finos-card-inner {
+  background: var(--bg-elevated);
+  border-color: var(--border-subtle);
+}
+
+[data-theme="light"] ::-webkit-scrollbar-track { background: #F0F4F8; }
+[data-theme="light"] ::-webkit-scrollbar-thumb { background: #CBD5E1; }
+
+[data-theme="light"] [data-radix-popper-content-wrapper] [role="listbox"],
+[data-theme="light"] [data-radix-select-content] {
+  background: #FFFFFF !important;
+  border-color: rgba(0,0,0,0.1) !important;
+  color: #0F172A !important;
+}
+[data-theme="light"] [role="dialog"] {
+  background: #FFFFFF !important;
+  border-color: rgba(0,0,0,0.1) !important;
+  color: #0F172A !important;
+}
+[data-theme="light"] [data-sonner-toast] {
+  background: #FFFFFF !important;
+  border-color: rgba(0,0,0,0.1) !important;
+  color: #0F172A !important;
 }
 
 @layer base {
@@ -122,12 +190,13 @@
   50% { opacity: 0.4; }
 }
 
-/* Hover glow system */
+/* Hover glow system — uses CSS variable so accent color change takes effect */
 .hover-glow {
   transition: box-shadow 0.3s ease, transform 0.2s ease;
 }
 .hover-glow:hover {
-  box-shadow: 0 0 24px rgba(0,212,170,0.15), 0 8px 24px rgba(0,212,170,0.08);
+  box-shadow: 0 0 24px color-mix(in srgb, var(--accent-primary) 15%, transparent),
+              0 8px 24px color-mix(in srgb, var(--accent-primary) 8%, transparent);
   transform: translateY(-1px);
 }
 .hover-glow-success:hover {

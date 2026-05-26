@@ -23,8 +23,8 @@ export const assets = pgTable("assets", {
   symbol: text("symbol").notNull(), // Ticker/Symbol (örn: THYAO, AAPL, BTC)
   market: text("market").notNull(), // BIST, US, Diğer
   quantity: decimal("quantity", { precision: 18, scale: 8 }).notNull().default("0"), // Miktar
-  averagePrice: decimal("average_price", { precision: 18, scale: 2 }).notNull(), // Ortalama alış fiyatı
-  currentPrice: decimal("current_price", { precision: 18, scale: 2 }).notNull(), // Güncel fiyat
+  averagePrice: decimal("average_price", { precision: 18, scale: 8 }).notNull(), // Ortalama alış fiyatı
+  currentPrice: decimal("current_price", { precision: 18, scale: 8 }).notNull(), // Güncel fiyat
   currency: text("currency").notNull().default("TRY"), // Para birimi (TRY, USD, vb.)
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -43,8 +43,8 @@ export const transactions = pgTable("transactions", {
   assetId: varchar("asset_id").notNull(),
   type: text("type").notNull(), // alış, satış
   quantity: decimal("quantity", { precision: 18, scale: 8 }).notNull(), // Miktar
-  price: decimal("price", { precision: 18, scale: 2 }).notNull(), // İşlem fiyatı
-  totalAmount: decimal("total_amount", { precision: 18, scale: 2 }).notNull(), // Toplam tutar
+  price: decimal("price", { precision: 18, scale: 8 }).notNull(), // İşlem fiyatı
+  totalAmount: decimal("total_amount", { precision: 18, scale: 8 }).notNull(), // Toplam tutar
   currency: text("currency").notNull().default("TRY"),
   notes: text("notes"), // Notlar
   date: timestamp("date").notNull(), // İşlem tarihi
@@ -63,11 +63,12 @@ export type Transaction = typeof transactions.$inferSelect;
 
 // Portföy özeti için tip
 export type PortfolioSummary = {
-  totalAssets: number; // Toplam Varlık
+  totalAssets: number; // Toplam Varlık (market değeri)
+  totalInvested: number; // Toplam Maliyet (alış bedeli toplamı)
   totalDebt: number; // Toplam Borç
   netWorth: number; // Net Değer
-  monthlyChange: number; // Aylık Değişim (%)
-  monthlyChangeAmount: number; // Aylık Değişim (Tutar)
+  monthlyChange: number; // Toplam ROI (%)
+  monthlyChangeAmount: number; // Toplam Kar/Zarar (Tutar)
 };
 
 // Varlık dağılımı için tip

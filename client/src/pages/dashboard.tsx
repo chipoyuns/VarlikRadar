@@ -286,32 +286,41 @@ export default function Dashboard() {
                 <PrivacyValue value={fmt(summary?.totalAssets || 0)} hidden={privacyMode}
                   className="text-4xl font-bold text-[#F0F2F7] tracking-tight font-mono" />
               </div>
-              <div className="flex flex-wrap items-center gap-3 mt-3">
+              <div className="flex flex-wrap items-center gap-3 mt-2">
                 {summary && (
-                  <div className={`flex items-center gap-1 text-sm font-medium ${(summary.monthlyChangeAmount || 0) >= 0 ? "text-[#00D4AA]" : "text-[#FF4757]"}`}>
+                  <div className={`flex items-center gap-1 text-sm font-semibold ${(summary.monthlyChangeAmount || 0) >= 0 ? "text-[#00D4AA]" : "text-[#FF4757]"}`}>
                     {(summary.monthlyChangeAmount || 0) >= 0 ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownRight className="h-4 w-4" />}
-                    <PrivacyValue value={`${(summary.monthlyChangeAmount || 0) >= 0 ? "+" : ""}${fmt(summary.monthlyChangeAmount || 0)} toplam kar`} hidden={privacyMode} />
+                    <PrivacyValue value={`${(summary.monthlyChangeAmount || 0) >= 0 ? "+" : ""}${fmt(summary.monthlyChangeAmount || 0)}`} hidden={privacyMode} />
+                    <span className="text-xs font-normal opacity-70">toplam gerçekleşmemiş kar/zarar</span>
                   </div>
                 )}
               </div>
-              <div className="flex flex-wrap gap-4 mt-4 pt-4 border-t border-[rgba(255,255,255,0.06)]">
+              <div className="grid grid-cols-4 gap-3 mt-4 pt-4 border-t border-[rgba(255,255,255,0.06)]">
+                <div>
+                  <p className="text-xs text-[#4E5A6B]">Maliyet Bedeli</p>
+                  <PrivacyValue value={fmt(summary?.totalInvested || 0)} hidden={privacyMode} className="text-sm font-semibold text-[#8892A4] font-mono" />
+                </div>
+                <div>
+                  <p className="text-xs text-[#4E5A6B]">Piyasa Değeri</p>
+                  <PrivacyValue value={fmt(summary?.totalAssets || 0)} hidden={privacyMode} className="text-sm font-semibold text-[#F0F2F7] font-mono" />
+                </div>
+                <div>
+                  <p className="text-xs text-[#4E5A6B]">Net Kar/Zarar</p>
+                  <PrivacyValue
+                    value={`${(summary?.monthlyChangeAmount || 0) >= 0 ? "+" : ""}${fmt(summary?.monthlyChangeAmount || 0)}`}
+                    hidden={privacyMode}
+                    className={`text-sm font-semibold font-mono ${(summary?.monthlyChangeAmount || 0) >= 0 ? "text-[#00D4AA]" : "text-[#FF4757]"}`}
+                  />
+                </div>
                 <div>
                   <p className="text-xs text-[#4E5A6B]">Toplam ROI</p>
                   <p className={`text-sm font-semibold font-mono ${(summary?.monthlyChange || 0) >= 0 ? "text-[#00D4AA]" : "text-[#FF4757]"}`}>
                     {privacyMode ? "••%" : fmtPct(summary?.monthlyChange || 0)}
                   </p>
                 </div>
-                <div>
-                  <p className="text-xs text-[#4E5A6B]">Toplam Varlık</p>
-                  <PrivacyValue value={fmt(summary?.totalAssets || 0)} hidden={privacyMode} className="text-sm font-semibold text-[#F0F2F7] font-mono" />
-                </div>
-                <div>
-                  <p className="text-xs text-[#4E5A6B]">Toplam Borç</p>
-                  <PrivacyValue value={fmt(summary?.totalDebt || 0)} hidden={privacyMode} className="text-sm font-semibold text-[#F0F2F7] font-mono" />
-                </div>
-                <div className="ml-auto">
-                  <Sparkline data={sparklineData} positive={(summary?.monthlyChange || 0) >= 0} />
-                </div>
+              </div>
+              <div className="flex justify-end mt-2">
+                <Sparkline data={sparklineData} positive={(summary?.monthlyChange || 0) >= 0} />
               </div>
             </>
           )}

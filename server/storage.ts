@@ -231,6 +231,7 @@ export class DatabaseStorage implements IStorage {
     
     return {
       totalAssets,
+      totalInvested: totalCost,
       totalDebt,
       netWorth,
       monthlyChange,
