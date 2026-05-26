@@ -9,7 +9,7 @@ import {
 import { useDisplayCurrency } from "@/lib/currency-context";
 import { exportBackupJSON, importBackupJSON } from "@/lib/export-utils";
 import { useToast } from "@/hooks/use-toast";
-import { queryClient } from "@/lib/queryClient";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useQuery } from "@tanstack/react-query";
 import type { Asset } from "@shared/schema";
 
@@ -253,10 +253,19 @@ function DcaPlanModal({
     setSearch("");
   };
 
+  const handleConfirmCustomTicker = () => {
+    const sym = search.trim().toUpperCase();
+    if (!sym) return;
+    setTicker(sym);
+    setAssetName(sym);
+    setSearch("");
+  };
+
   const handleSave = () => {
-    if (!ticker || !assetName) return;
+    if (!ticker) return;
+    const name = assetName || ticker;
     const nextDate = addFrequency(new Date(startDate), frequency).toISOString();
-    onSave({ assetTicker: ticker, assetName, assetType, amount, frequency, nextDate, isActive: true, startDate: new Date(startDate).toISOString(), notes });
+    onSave({ assetTicker: ticker, assetName: name, assetType, amount, frequency, nextDate, isActive: true, startDate: new Date(startDate).toISOString(), notes });
     onClose();
   };
 
@@ -276,24 +285,33 @@ function DcaPlanModal({
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#4E5A6B]" />
               <input
-                value={search || ticker}
-                onChange={e => { setSearch(e.target.value); if (!e.target.value) { setTicker(""); setAssetName(""); } }}
-                placeholder="BTC, THYAO, Altın..."
+                value={ticker && !search ? ticker : search}
+                onChange={e => {
+                  const v = e.target.value;
+                  setSearch(v);
+                  if (!v) { setTicker(""); setAssetName(""); }
+                }}
+                onKeyDown={e => { if (e.key === "Enter") handleConfirmCustomTicker(); }}
+                placeholder="BTC, THYAO, GARAN... (Enter'a bas)"
                 className="w-full pl-9 pr-4 py-2.5 bg-[#151A23] border border-[rgba(255,255,255,0.06)] rounded-lg text-sm text-[#F0F2F7] placeholder-[#4E5A6B] focus:outline-none focus:border-[#00D4AA] transition-colors"
               />
             </div>
-            {suggestedAssets.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-2">
-                {suggestedAssets.map(a => (
-                  <button key={a.id} onClick={() => handleSelectAsset(a)}
-                    className={`px-3 py-1 rounded-lg text-xs font-medium transition-all border ${ticker === a.symbol ? "bg-[rgba(0,212,170,0.12)] text-[#00D4AA] border-[rgba(0,212,170,0.3)]" : "bg-[#151A23] text-[#8892A4] border-[rgba(255,255,255,0.06)] hover:border-[rgba(255,255,255,0.12)]"}`}>
-                    {a.symbol}
-                  </button>
-                ))}
-              </div>
-            )}
-            {ticker && assetName && (
-              <p className="text-xs text-[#00D4AA] mt-1.5">✓ Seçildi: {assetName} ({ticker})</p>
+            <div className="flex flex-wrap gap-2 mt-2">
+              {suggestedAssets.map(a => (
+                <button key={a.id} onClick={() => handleSelectAsset(a)}
+                  className={`px-3 py-1 rounded-lg text-xs font-medium transition-all border ${ticker === a.symbol ? "bg-[rgba(0,212,170,0.12)] text-[#00D4AA] border-[rgba(0,212,170,0.3)]" : "bg-[#151A23] text-[#8892A4] border-[rgba(255,255,255,0.06)] hover:border-[rgba(255,255,255,0.12)]"}`}>
+                  {a.symbol}
+                </button>
+              ))}
+              {search.trim() && !suggestedAssets.some(a => a.symbol === search.trim().toUpperCase()) && (
+                <button onClick={handleConfirmCustomTicker}
+                  className="px-3 py-1 rounded-lg text-xs font-medium transition-all border bg-[rgba(255,184,51,0.1)] text-[#FFB833] border-[rgba(255,184,51,0.3)] hover:bg-[rgba(255,184,51,0.15)]">
+                  + Özel: {search.trim().toUpperCase()}
+                </button>
+              )}
+            </div>
+            {ticker && (
+              <p className="text-xs text-[#00D4AA] mt-1">✓ Seçildi: {assetName || ticker} ({ticker})</p>
             )}
           </div>
 
@@ -378,7 +396,7 @@ function DcaPlanModal({
         </div>
         <div className="flex gap-3 p-6 border-t border-[rgba(255,255,255,0.06)]">
           <button onClick={onClose} className="flex-1 px-4 py-2.5 rounded-lg text-sm font-medium text-[#8892A4] border border-[rgba(255,255,255,0.06)] hover:text-[#F0F2F7] transition-colors">İptal</button>
-          <button onClick={handleSave} disabled={!ticker || !assetName}
+          <button onClick={handleSave} disabled={!ticker}
             className="flex-1 px-4 py-2.5 rounded-lg text-sm font-medium bg-[#00D4AA] text-[#080A0F] hover:bg-[#00D4AA]/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
             {editPlan ? "Kaydet" : "Plan Oluştur →"}
           </button>
@@ -440,11 +458,20 @@ function AlertModal({
     setSearch("");
   };
 
+  const handleConfirmCustomTicker = () => {
+    const sym = search.trim().toUpperCase();
+    if (!sym) return;
+    setTicker(sym);
+    setAssetName(sym);
+    setSearch("");
+  };
+
   const handleSave = () => {
     if (!ticker) return;
+    const name = assetName || ticker;
     const finalTarget = condition === "PERCENT_CHANGE" ? percentTargetPrice : targetNum;
     onSave({
-      ticker, assetName, condition,
+      ticker, assetName: name, condition,
       targetPrice: finalTarget,
       percentChange: condition === "PERCENT_CHANGE" ? (percentDir === "up" ? percentChange : -percentChange) : undefined,
       currentPrice, currency, isActive: true, repeatOnTrigger, notes,
@@ -467,22 +494,37 @@ function AlertModal({
             <label className="block text-xs text-[#4E5A6B] mb-2 uppercase tracking-wider">Varlık</label>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#4E5A6B]" />
-              <input value={search || ticker} onChange={e => { setSearch(e.target.value); if (!e.target.value) { setTicker(""); setAssetName(""); } }}
-                placeholder="BTC, THYAO, GARAN..."
-                className="w-full pl-9 pr-4 py-2.5 bg-[#151A23] border border-[rgba(255,255,255,0.06)] rounded-lg text-sm text-[#F0F2F7] placeholder-[#4E5A6B] focus:outline-none focus:border-[#00D4AA]" />
+              <input
+                value={ticker && !search ? ticker : search}
+                onChange={e => {
+                  const v = e.target.value;
+                  setSearch(v);
+                  if (!v) { setTicker(""); setAssetName(""); }
+                }}
+                onKeyDown={e => { if (e.key === "Enter") handleConfirmCustomTicker(); }}
+                placeholder="BTC, THYAO, GARAN... (Enter'a bas)"
+                className="w-full pl-9 pr-4 py-2.5 bg-[#151A23] border border-[rgba(255,255,255,0.06)] rounded-lg text-sm text-[#F0F2F7] placeholder-[#4E5A6B] focus:outline-none focus:border-[#00D4AA]"
+              />
             </div>
-            {suggestedAssets.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-2">
-                {suggestedAssets.map(a => (
-                  <button key={a.id} onClick={() => handleSelectAsset(a)}
-                    className={`px-3 py-1 rounded-lg text-xs font-medium transition-all border ${ticker === a.symbol ? "bg-[rgba(0,212,170,0.12)] text-[#00D4AA] border-[rgba(0,212,170,0.3)]" : "bg-[#151A23] text-[#8892A4] border-[rgba(255,255,255,0.06)]"}`}>
-                    {a.symbol}
-                  </button>
-                ))}
-              </div>
-            )}
+            <div className="flex flex-wrap gap-2 mt-2">
+              {suggestedAssets.map(a => (
+                <button key={a.id} onClick={() => handleSelectAsset(a)}
+                  className={`px-3 py-1 rounded-lg text-xs font-medium transition-all border ${ticker === a.symbol ? "bg-[rgba(0,212,170,0.12)] text-[#00D4AA] border-[rgba(0,212,170,0.3)]" : "bg-[#151A23] text-[#8892A4] border-[rgba(255,255,255,0.06)]"}`}>
+                  {a.symbol}
+                </button>
+              ))}
+              {search.trim() && !suggestedAssets.some(a => a.symbol === search.trim().toUpperCase()) && (
+                <button onClick={handleConfirmCustomTicker}
+                  className="px-3 py-1 rounded-lg text-xs font-medium transition-all border bg-[rgba(255,184,51,0.1)] text-[#FFB833] border-[rgba(255,184,51,0.3)] hover:bg-[rgba(255,184,51,0.15)]">
+                  + Özel: {search.trim().toUpperCase()}
+                </button>
+              )}
+            </div>
             {ticker && currentPrice > 0 && (
-              <p className="text-xs text-[#8892A4] mt-1.5">Şu anki fiyat: <span className="font-mono text-[#F0F2F7]">{currentPrice.toLocaleString("tr-TR")} {currency}</span></p>
+              <p className="text-xs text-[#8892A4] mt-1">Şu anki fiyat: <span className="font-mono text-[#F0F2F7]">{currentPrice.toLocaleString("tr-TR")} {currency}</span></p>
+            )}
+            {ticker && currentPrice <= 0 && (
+              <p className="text-xs text-[#00D4AA] mt-1">✓ Seçildi: {ticker}</p>
             )}
           </div>
 
@@ -612,6 +654,109 @@ export default function SettingsPage() {
       return next;
     });
   };
+
+  // ─── DCA EXECUTION ENGINE ─────────────────────────────────────────────────
+  // Runs automatically when assets load. For every active plan whose nextDate
+  // has passed, creates a real buy-transaction in the database.
+  useEffect(() => {
+    if (!portfolioAssets.length || !dcaPlans.length) return;
+    const now = new Date();
+    const duePlans = dcaPlans.filter(p => p.isActive && new Date(p.nextDate) <= now);
+    if (!duePlans.length) return;
+
+    (async () => {
+      for (const plan of duePlans) {
+        const asset = portfolioAssets.find(a => a.symbol === plan.assetTicker);
+        if (!asset) {
+          toast({
+            title: "DCA Planı Uyarısı",
+            description: `${plan.assetTicker} portföyde bulunamadı — önce varlık ekleyin`,
+            variant: "destructive",
+          });
+          continue;
+        }
+        const price = Number(asset.currentPrice);
+        if (price <= 0) continue;
+        const qty = plan.amount / price;
+        try {
+          await apiRequest("POST", "/api/transactions", {
+            assetId: asset.id,
+            type: "alış",
+            quantity: qty,
+            price,
+            totalAmount: plan.amount,
+            currency: asset.currency,
+            date: new Date().toISOString(),
+            notes: `Otomatik DCA: ${plan.assetTicker}`,
+          });
+          const exec: DcaExecution = {
+            id: genId(),
+            amount: plan.amount,
+            assetAmount: qty,
+            priceAtTime: price,
+            executedAt: now.toISOString(),
+            isManual: false,
+          };
+          const nextDate = addFrequency(now, plan.frequency).toISOString();
+          setDcaPlans(prev => prev.map(p => p.id === plan.id ? {
+            ...p,
+            nextDate,
+            totalInvested: p.totalInvested + plan.amount,
+            executions: [exec, ...p.executions],
+          } : p));
+          toast({
+            title: "✅ DCA Alımı Gerçekleşti",
+            description: `${plan.assetTicker}: ${fmtMoney(plan.amount)} • ${qty.toFixed(6)} adet @ ${price.toLocaleString("tr-TR")} ${asset.currency}`,
+          });
+          queryClient.invalidateQueries({ queryKey: ["/api/portfolio/summary"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/transactions"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/assets"] });
+        } catch {
+          toast({ title: "DCA Alımı Başarısız", description: plan.assetTicker, variant: "destructive" });
+        }
+      }
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [portfolioAssets]);
+
+  // ─── PRICE ALERT CHECKING ENGINE ─────────────────────────────────────────
+  // Runs whenever portfolio assets are loaded or refreshed. Checks each active
+  // alert against the current price and fires toast on trigger.
+  useEffect(() => {
+    if (!portfolioAssets.length || !alerts.length) return;
+    let anyTriggered = false;
+    const updated = alerts.map(alert => {
+      if (!alert.isActive || alert.isTriggered) return alert;
+      const asset = portfolioAssets.find(a => a.symbol === alert.ticker);
+      const price = asset ? Number(asset.currentPrice) : 0;
+      if (!price) return { ...alert, currentPrice: price };
+
+      const isHit =
+        (alert.condition === "ABOVE" && price >= alert.targetPrice) ||
+        (alert.condition === "BELOW" && price <= alert.targetPrice) ||
+        (alert.condition === "PERCENT_CHANGE" && alert.percentChange !== undefined &&
+          (alert.percentChange > 0 ? price >= alert.targetPrice : price <= alert.targetPrice));
+
+      if (isHit) {
+        anyTriggered = true;
+        const dir = alert.condition === "ABOVE" ? "≥" : "≤";
+        toast({
+          title: `🔔 Fiyat Alarmı Tetiklendi! — ${alert.ticker}`,
+          description: `Şu anki: ${price.toLocaleString("tr-TR")} ${alert.currency}  ${dir}  Hedef: ${alert.targetPrice.toLocaleString("tr-TR")} ${alert.currency}`,
+        });
+        return {
+          ...alert,
+          isTriggered: true,
+          isActive: alert.repeatOnTrigger,
+          triggeredAt: new Date().toISOString(),
+          currentPrice: price,
+        };
+      }
+      return { ...alert, currentPrice: price };
+    });
+    if (anyTriggered) setAlerts(updated);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [portfolioAssets]);
 
   // DCA computed stats
   const dcaStats = useMemo(() => {
