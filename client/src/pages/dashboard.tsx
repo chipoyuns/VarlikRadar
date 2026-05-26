@@ -283,14 +283,14 @@ export default function Dashboard() {
           {isLoading ? <StatSkeleton /> : (
             <>
               <div className="count-animate">
-                <PrivacyValue value={fmt(summary?.netWorth || 0)} hidden={privacyMode}
+                <PrivacyValue value={fmt(summary?.totalAssets || 0)} hidden={privacyMode}
                   className="text-4xl font-bold text-[#F0F2F7] tracking-tight font-mono" />
               </div>
               <div className="flex flex-wrap items-center gap-3 mt-3">
                 {summary && (
                   <div className={`flex items-center gap-1 text-sm font-medium ${(summary.monthlyChangeAmount || 0) >= 0 ? "text-[#00D4AA]" : "text-[#FF4757]"}`}>
                     {(summary.monthlyChangeAmount || 0) >= 0 ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownRight className="h-4 w-4" />}
-                    <PrivacyValue value={`${(summary.monthlyChangeAmount || 0) >= 0 ? "+" : ""}${fmt(summary.monthlyChangeAmount || 0)} toplam`} hidden={privacyMode} />
+                    <PrivacyValue value={`${(summary.monthlyChangeAmount || 0) >= 0 ? "+" : ""}${fmt(summary.monthlyChangeAmount || 0)} toplam kar`} hidden={privacyMode} />
                   </div>
                 )}
               </div>
@@ -502,7 +502,7 @@ export default function Dashboard() {
 
             <div className="flex gap-1">
 
-              {["monthly", "quarterly", "yearly"].map(p => (
+              {(["daily", "weekly", "monthly"] as const).map(p => (
 
                 <button key={p} onClick={() => setPerfPeriod(p)}
 
@@ -510,7 +510,7 @@ export default function Dashboard() {
 
                   style={{ background: perfPeriod === p ? "#00D4AA" : "rgba(255,255,255,0.04)", color: perfPeriod === p ? "#080A0F" : "#8892A4" }}>
 
-                  {p === "monthly" ? "Günlük" : p === "quarterly" ? "Haftalık" : "Aylık"}
+                  {p === "daily" ? "Günlük" : p === "weekly" ? "Haftalık" : "Aylık"}
 
                 </button>
 

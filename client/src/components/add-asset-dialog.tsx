@@ -56,10 +56,12 @@ export function AddAssetDialog({ open, onOpenChange }: AddAssetDialogProps) {
       const response = await fetch(`/api/prices/${symbol}?type=${type}&market=${market}`);
       if (response.ok) {
         const data = await response.json();
-        form.setValue("currentPrice", data.price.toFixed(2));
+        const price: number = data.price;
+        const decimals = price >= 1 ? 2 : price >= 0.01 ? 4 : price >= 0.0001 ? 6 : 8;
+        form.setValue("currentPrice", price.toFixed(decimals));
         toast({
           title: "Fiyat Güncellendi",
-          description: `${symbol} güncel fiyatı: ${data.price.toFixed(2)}`,
+          description: `${symbol} güncel fiyatı: ${price.toFixed(decimals)}`,
         });
       } else {
         toast({

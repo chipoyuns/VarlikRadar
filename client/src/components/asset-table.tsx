@@ -54,10 +54,18 @@ export function AssetTable({ assets, searchTerm = "" }: AssetTableProps) {
     onError: () => toast({ title: "Hata", description: "Varlık silinirken bir hata oluştu", variant: "destructive" }),
   });
 
+  const smartDecimals = (v: number): number => {
+    if (v >= 1) return 2;
+    if (v >= 0.01) return 4;
+    if (v >= 0.0001) return 6;
+    return 8;
+  };
+
   const fmtCurrency = (amount: number | undefined, currency: string) => {
     const symbols: Record<string, string> = { TRY: "₺", USD: "$", EUR: "€" };
     const v = amount ?? 0;
-    return `${symbols[currency] || ""}${v.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const decimals = smartDecimals(Math.abs(v));
+    return `${symbols[currency] || ""}${v.toLocaleString("tr-TR", { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}`;
   };
 
   if (filteredAssets.length === 0) {
@@ -105,7 +113,7 @@ export function AssetTable({ assets, searchTerm = "" }: AssetTableProps) {
                       </div>
                       <div>
                         <p className="text-sm font-medium text-[#F0F2F7]">{asset.name}</p>
-                        <p className="text-xs text-[#4E5A6B] font-mono">{asset.symbol} · {asset.currency}</p>
+                        <p className="text-xs text-[#F0F2F7] font-mono">{asset.symbol} · {asset.currency}</p>
                       </div>
                     </div>
                   </td>

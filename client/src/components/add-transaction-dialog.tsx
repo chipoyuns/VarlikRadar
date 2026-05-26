@@ -63,10 +63,12 @@ export function AddTransactionDialog({ open, onOpenChange }: AddTransactionDialo
       const response = await fetch(`/api/prices/${selectedAsset.symbol}?type=${selectedAsset.type}&market=${selectedAsset.market}`);
       if (response.ok) {
         const data = await response.json();
-        form.setValue("price", data.price.toFixed(8));
+        const price: number = data.price;
+        const decimals = price >= 1 ? 2 : price >= 0.01 ? 4 : price >= 0.0001 ? 6 : 8;
+        form.setValue("price", price.toFixed(decimals));
         toast({
           title: "Fiyat Güncellendi",
-          description: `${selectedAsset.symbol} güncel fiyatı: ${data.price.toFixed(2)} ${selectedAsset.currency}`,
+          description: `${selectedAsset.symbol} güncel fiyatı: ${price.toFixed(decimals)} ${selectedAsset.currency}`,
         });
       } else {
         toast({ title: "Fiyat Bulunamadı", description: "Bu sembol için güncel fiyat alınamadı", variant: "destructive" });
