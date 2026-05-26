@@ -273,7 +273,7 @@ export default function Dashboard() {
           <div className="flex items-start justify-between mb-3">
             <div>
               <p className="text-xs font-medium text-[#8892A4] uppercase tracking-wider">Net Varlık</p>
-              <p className="text-xs text-[#4E5A6B] mt-0.5">Toplam portföy değeri</p>
+              <p className="text-xs text-[#4E5A6B] mt-0.5">Toplam portföy değeri + aktif olan tüm karlar</p>
             </div>
             <div className="flex items-center gap-1.5 bg-[rgba(0,212,170,0.1)] rounded-full px-2.5 py-1">
               <BarChart3 className="h-3.5 w-3.5 text-[#00D4AA]" />
