@@ -2,6 +2,17 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 
+function smartDecimals(v: number): number {
+  if (v === 0 || v >= 1) return 2;
+  const magnitude = Math.floor(Math.log10(Math.abs(v)));
+  return Math.min(8, -magnitude + 3);
+}
+
+function fmtPrice(amount: number, currency: string): string {
+  const d = smartDecimals(Math.abs(amount));
+  return `${currency} ${amount.toLocaleString("tr-TR", { minimumFractionDigits: d, maximumFractionDigits: d })}`;
+}
+
 function sanitize(str: string | undefined | null): string {
   if (!str) return "";
   return str
@@ -39,9 +50,9 @@ export function exportAssetsToPDF(assets: any[]) {
       sanitize(a.type),
       sanitize(a.market),
       Number(a.quantity).toLocaleString("tr-TR", { maximumFractionDigits: 8 }),
-      `${a.currency} ${Number(a.averagePrice).toLocaleString("tr-TR", { minimumFractionDigits: 2 })}`,
-      `${a.currency} ${Number(a.currentPrice).toLocaleString("tr-TR", { minimumFractionDigits: 2 })}`,
-      `${a.currency} ${Number(a.totalValue || 0).toLocaleString("tr-TR", { minimumFractionDigits: 2 })}`,
+      fmtPrice(Number(a.averagePrice), a.currency),
+      fmtPrice(Number(a.currentPrice), a.currency),
+      fmtPrice(Number(a.totalValue || 0), a.currency),
       `${Number(a.change || 0) >= 0 ? "+" : ""}${Number(a.change || 0).toFixed(2)}%`,
       `${Number(a.profit || 0) >= 0 ? "+" : ""}${Number(a.profit || 0).toLocaleString("tr-TR", { minimumFractionDigits: 2 })}`,
     ]),
@@ -93,8 +104,8 @@ export function exportTransactionsToPDF(transactions: any[], assets: any[]) {
         asset ? sanitize(`${asset.symbol} - ${asset.name}`) : sanitize(t.assetId),
         sanitize(t.type),
         Number(t.quantity).toLocaleString("tr-TR", { maximumFractionDigits: 8 }),
-        `${t.currency} ${Number(t.price).toLocaleString("tr-TR", { minimumFractionDigits: 2 })}`,
-        `${t.currency} ${Number(t.totalAmount).toLocaleString("tr-TR", { minimumFractionDigits: 2 })}`,
+        fmtPrice(Number(t.price), t.currency),
+        fmtPrice(Number(t.totalAmount), t.currency),
         t.currency,
         sanitize(t.notes || ""),
       ];

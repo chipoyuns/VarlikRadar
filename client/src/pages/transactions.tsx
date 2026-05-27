@@ -11,7 +11,15 @@ import { EditTransactionDialog } from "@/components/edit-transaction-dialog";
 import { exportTransactionsToPDF, exportTransactionsToExcel } from "@/lib/export-utils";
 import type { Asset, Transaction } from "@shared/schema";
 
-const fmt = (n: number) => n.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const smartDecimals = (v: number): number => {
+  if (v === 0 || v >= 1) return 2;
+  const magnitude = Math.floor(Math.log10(Math.abs(v)));
+  return Math.min(8, -magnitude + 3);
+};
+const fmt = (n: number, forceDecimals?: number) => {
+  const decimals = forceDecimals ?? smartDecimals(Math.abs(n));
+  return n.toLocaleString("tr-TR", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+};
 const fmtCurrency = (amount: number, currency: string = "TRY") => {
   const symbols: Record<string, string> = { TRY: "₺", USD: "$", EUR: "€", BTC: "₿", ETH: "Ξ" };
   return `${symbols[currency] || ""}${fmt(amount)}`;

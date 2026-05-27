@@ -175,7 +175,7 @@ export async function updateAllAssetPrices(): Promise<PriceUpdateResult[]> {
       
       if (newPrice !== null && newPrice > 0) {
         await storage.updateAsset(asset.id, {
-          currentPrice: newPrice.toFixed(6),
+          currentPrice: newPrice.toFixed(8),
         });
       }
     } catch (e) {

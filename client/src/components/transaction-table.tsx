@@ -44,13 +44,20 @@ export function TransactionTable({ transactions, assets }: TransactionTableProps
     },
   });
 
+  const smartDecimals = (v: number): number => {
+    if (v === 0 || v >= 1) return 2;
+    const magnitude = Math.floor(Math.log10(Math.abs(v)));
+    return Math.min(8, -magnitude + 3);
+  };
+
   const formatCurrency = (amount: number, currency: string) => {
     const symbols: Record<string, string> = {
       TRY: "₺",
       USD: "$",
       EUR: "€",
     };
-    return `${symbols[currency] || ""}${amount.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const decimals = smartDecimals(Math.abs(amount));
+    return `${symbols[currency] || ""}${amount.toLocaleString("tr-TR", { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}`;
   };
 
   const getAssetLabel = (assetId: string) => {

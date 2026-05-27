@@ -55,10 +55,13 @@ export function AssetTable({ assets, searchTerm = "" }: AssetTableProps) {
   });
 
   const smartDecimals = (v: number): number => {
-    if (v >= 1) return 2;
-    if (v >= 0.01) return 4;
-    if (v >= 0.0001) return 6;
-    return 8;
+    if (v === 0 || v >= 1) return 2;
+    // Use significant-digit logic: show 4 significant digits for sub-$1 prices
+    // e.g. 0.1085 → magnitude=-1 → 4 decimals → "0,1085" ✓
+    //      0.04003 → magnitude=-2 → 5 decimals → "0,04003" ✓
+    //      0.004003 → magnitude=-3 → 6 decimals → "0,004003" ✓
+    const magnitude = Math.floor(Math.log10(Math.abs(v)));
+    return Math.min(8, -magnitude + 3);
   };
 
   const fmtCurrency = (amount: number | undefined, currency: string) => {
