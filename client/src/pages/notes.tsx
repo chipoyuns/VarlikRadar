@@ -12,11 +12,9 @@ import {
 } from "lucide-react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import UnderlineExt from "@tiptap/extension-underline";
 import Placeholder from "@tiptap/extension-placeholder";
 import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
-import LinkExt from "@tiptap/extension-link";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 const NOTE_CATEGORIES = [
@@ -339,11 +337,12 @@ export default function NotesPage() {
   // TipTap editor
   const editor = useEditor({
     extensions: [
-      StarterKit.configure({ history: true }),
-      UnderlineExt,
+      StarterKit.configure({
+        history: true,
+        link: { openOnClick: false, HTMLAttributes: { rel: "noopener noreferrer" } },
+      }),
       TaskList,
       TaskItem.configure({ nested: true }),
-      LinkExt.configure({ openOnClick: false, HTMLAttributes: { rel: "noopener noreferrer" } }),
       Placeholder.configure({ placeholder: "Buraya notunuzu yazın... (Markdown desteklenir)" }),
     ],
     content: "",

@@ -202,7 +202,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch { res.status(500).json({ error: "Failed to fetch budget summary" }); }
   });
 
-  // Budget balance performance — saves daily snapshot on each call
+  // Budget balance performance — saves daily snapshot on each call (snapshot ops are non-critical)
   app.get("/api/budget/performance", async (req, res) => {
     try {
       const period = (req.query.period as string) || "monthly";
@@ -212,16 +212,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const now = new Date();
       const todayStr = now.toISOString().slice(0, 10);
 
-      // Save today's snapshot
-      const todayIncomeTotal = allIncomes.reduce((s, i) => s + (Number(i.amount) || 0), 0);
-      const todayExpenseTotal = allExpenses.reduce((s, e) => s + (Number(e.amount) || 0), 0);
-      const todayBalance = kasaValue + todayIncomeTotal + portfolioKarZarar - todayExpenseTotal;
-      await storage.saveBudgetSnapshot(todayStr, todayBalance);
+      // Save today's snapshot — wrapped in try/catch: if table doesn't exist yet, we still return data
+      const calcBalance = (cutoff: Date) => {
+        const inc = allIncomes.filter(i => new Date(i.date) <= cutoff).reduce((s, i) => s + (Number(i.amount) || 0), 0);
+        const exp = allExpenses.filter(e => new Date(e.date) <= cutoff).reduce((s, e) => s + (Number(e.amount) || 0), 0);
+        return kasaValue + inc + portfolioKarZarar - exp;
+      };
+      try {
+        await storage.saveBudgetSnapshot(todayStr, calcBalance(new Date()));
+      } catch (snapErr) {
+        console.warn("Budget snapshot save skipped (table may not exist):", (snapErr as Error).message);
+      }
+
+      // Try to load snapshots — if table missing, fall back to empty map
+      let snapMap = new Map<string, number>();
+      try {
+        const snapshots = await storage.getBudgetSnapshots(400);
+        snapshots.forEach(s => snapMap.set(s.date, Number(s.balance)));
+      } catch {
+        // snapshots table not available — use pure calculation fallback
+      }
 
       const MONTH_NAMES = ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
 
       if (period === "daily") {
-        // Build last 30 days, use snapshots where available, calc otherwise
         const points: { label: string; date: string; end: Date }[] = [];
         for (let i = 29; i >= 0; i--) {
           const d = new Date(now); d.setDate(d.getDate() - i);
@@ -229,42 +243,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const end = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59);
           points.push({ label: `${d.getDate()}.${d.getMonth() + 1}`, date: dateStr, end });
         }
-        // Fetch all snapshots
-        const snapshots = await storage.getBudgetSnapshots(365);
-        const snapMap = new Map(snapshots.map(s => [s.date, Number(s.balance)]));
-
-        const result = points.map(point => {
-          if (snapMap.has(point.date)) {
-            return { month: point.label, value: snapMap.get(point.date)! };
-          }
-          const incomeTotal = allIncomes.filter(i => new Date(i.date) <= point.end).reduce((s, i) => s + Number(i.amount || 0), 0);
-          const expenseTotal = allExpenses.filter(e => new Date(e.date) <= point.end).reduce((s, e) => s + Number(e.amount || 0), 0);
-          return { month: point.label, value: kasaValue + incomeTotal + portfolioKarZarar - expenseTotal };
-        });
-        return res.json(result);
+        return res.json(points.map(p =>
+          snapMap.has(p.date)
+            ? { month: p.label, value: snapMap.get(p.date)! }
+            : { month: p.label, value: calcBalance(p.end) }
+        ));
       }
 
       if (period === "weekly") {
-        const points: { label: string; end: Date; weekEnd: string }[] = [];
+        const points: { label: string; end: Date; key: string }[] = [];
         for (let i = 11; i >= 0; i--) {
           const d = new Date(now); d.setDate(d.getDate() - i * 7);
           const end = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59);
-          points.push({ label: `H${12 - i}`, end, weekEnd: d.toISOString().slice(0, 10) });
+          points.push({ label: `H${12 - i}`, end, key: d.toISOString().slice(0, 10) });
         }
-        const snapshots = await storage.getBudgetSnapshots(365);
-        const snapMap = new Map(snapshots.map(s => [s.date, Number(s.balance)]));
-        const result = points.map(point => {
-          if (snapMap.has(point.weekEnd)) {
-            return { month: point.label, value: snapMap.get(point.weekEnd)! };
-          }
-          const incomeTotal = allIncomes.filter(i => new Date(i.date) <= point.end).reduce((s, i) => s + Number(i.amount || 0), 0);
-          const expenseTotal = allExpenses.filter(e => new Date(e.date) <= point.end).reduce((s, e) => s + Number(e.amount || 0), 0);
-          return { month: point.label, value: kasaValue + incomeTotal + portfolioKarZarar - expenseTotal };
-        });
-        return res.json(result);
+        return res.json(points.map(p =>
+          snapMap.has(p.key)
+            ? { month: p.label, value: snapMap.get(p.key)! }
+            : { month: p.label, value: calcBalance(p.end) }
+        ));
       }
 
-      // Monthly
+      // Monthly (default)
+      const monthSnapMap = new Map<string, number>();
+      snapMap.forEach((v, k) => monthSnapMap.set(k.slice(0, 7), v));
+
       const points: { label: string; end: Date; monthStr: string }[] = [];
       for (let i = 11; i >= 0; i--) {
         const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
@@ -272,22 +275,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const monthStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
         points.push({ label: MONTH_NAMES[d.getMonth()], end, monthStr });
       }
-      const snapshots = await storage.getBudgetSnapshots(400);
-      // Group snapshots by YYYY-MM
-      const monthSnapMap = new Map<string, number>();
-      for (const snap of snapshots) {
-        const monthKey = snap.date.slice(0, 7);
-        monthSnapMap.set(monthKey, Number(snap.balance));
-      }
-      const result = points.map(point => {
-        if (monthSnapMap.has(point.monthStr)) {
-          return { month: point.label, value: monthSnapMap.get(point.monthStr)! };
-        }
-        const incomeTotal = allIncomes.filter(i => new Date(i.date) <= point.end).reduce((s, i) => s + Number(i.amount || 0), 0);
-        const expenseTotal = allExpenses.filter(e => new Date(e.date) <= point.end).reduce((s, e) => s + Number(e.amount || 0), 0);
-        return { month: point.label, value: kasaValue + incomeTotal + portfolioKarZarar - expenseTotal };
-      });
-      return res.json(result);
+      return res.json(points.map(p =>
+        monthSnapMap.has(p.monthStr)
+          ? { month: p.label, value: monthSnapMap.get(p.monthStr)! }
+          : { month: p.label, value: calcBalance(p.end) }
+      ));
     } catch (error) {
       console.error("Budget performance error:", error);
       res.status(500).json({ error: "Failed to fetch budget performance" });
