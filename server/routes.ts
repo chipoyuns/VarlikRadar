@@ -388,8 +388,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         isPinned: isPinned === "true" ? true : undefined,
         isArchived: isArchived === "true" ? true : false,
       });
-      res.json(notesList);
-    } catch { res.status(500).json({ error: "Failed to fetch notes" }); }
+      res.json(Array.isArray(notesList) ? notesList : []);
+    } catch (err) {
+      console.warn("Notes table may not exist yet:", (err as Error).message);
+      res.json([]); // return empty array so frontend never crashes
+    }
   });
 
   app.get("/api/notes/:id", async (req, res) => {

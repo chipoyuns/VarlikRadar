@@ -103,7 +103,8 @@ function formatDateTime(dateStr: string | Date | null | undefined): string {
   return d.toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
-function sortNotes(noteList: Note[], sort: string): Note[] {
+function sortNotes(noteList: Note[] | undefined | null, sort: string): Note[] {
+  if (!noteList || !Array.isArray(noteList)) return [];
   const arr = [...noteList];
   switch (sort) {
     case "date_asc":     return arr.sort((a, b) => new Date(a.createdAt!).getTime() - new Date(b.createdAt!).getTime());
@@ -487,7 +488,7 @@ export default function NotesPage() {
 
   // Filter + sort notes
   const visibleNotes = (() => {
-    let list = allNotes;
+    let list: Note[] = Array.isArray(allNotes) ? allNotes : [];
     if (debouncedSearch) {
       const term = debouncedSearch.toLowerCase();
       list = list.filter(n =>
