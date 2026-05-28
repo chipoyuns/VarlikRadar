@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Plus, RefreshCw, Eye, EyeOff, Shield, Bitcoin, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, BarChart3, FileText, FileSpreadsheet, Target, Layers, Pencil, Check, X } from "lucide-react";
-import { useState, useMemo, useRef, useEffect } from "react";
+import { Plus, RefreshCw, Eye, EyeOff, Shield, Bitcoin, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, BarChart3, FileText, FileSpreadsheet, Target, Layers, Pencil, Check, X, Download, Upload } from "lucide-react";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { exportAssetsToPDF, exportAssetsToExcel } from "@/lib/export-utils";
 import type { BudgetSummary } from "@shared/schema";
 import { AddAssetDialog } from "@/components/add-asset-dialog";
@@ -71,7 +71,9 @@ export default function Dashboard() {
   const [portfolioTitle, setPortfolioTitle] = useState(() => localStorage.getItem("portfolio_title") || "Portföyüm");
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editTitleValue, setEditTitleValue] = useState(portfolioTitle);
+  const [isImporting, setIsImporting] = useState(false);
   const titleInputRef = useRef<HTMLInputElement>(null);
+  const importFileRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const { formatDisplayCurrency, displayCurrency, isLoadingRates } = useDisplayCurrency();
 
@@ -96,6 +98,56 @@ export default function Dashboard() {
   const { data: performance } = useQuery<MonthlyPerformance[]>({ queryKey: [`/api/portfolio/performance?period=${perfPeriod}`] });
   const { data: budgetPerformance, isLoading: budgetPerfLoading } = useQuery<MonthlyPerformance[]>({ queryKey: [`/api/budget/performance?period=${perfPeriod}&kasaValue=${parseFloat(localStorage.getItem("toplam_kasa") || "0") || 0}&portfolioKarZarar=${summary?.monthlyChangeAmount || 0}`] });
   const { data: budgetSummary } = useQuery<BudgetSummary>({ queryKey: ["/api/budget/summary"] });
+
+  const handleExport = useCallback(async () => {
+    try {
+      const res = await fetch("/api/backup/export");
+      if (!res.ok) throw new Error("Export failed");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `ekos_yedek_${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast({ title: "Yedek Alındı", description: "Tüm portföy verileri indirildi" });
+    } catch {
+      toast({ title: "Hata", description: "Yedek alınamadı", variant: "destructive" });
+    }
+  }, [toast]);
+
+  const handleImportFile = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.name.endsWith(".json")) {
+      toast({ title: "Hatalı Dosya", description: "Lütfen .json dosyası seçin", variant: "destructive" });
+      return;
+    }
+    setIsImporting(true);
+    try {
+      const text = await file.text();
+      const json = JSON.parse(text);
+      const res = await fetch("/api/backup/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(json),
+      });
+      if (!res.ok) throw new Error("Import failed");
+      const result = await res.json();
+      ["summary","details","allocation","performance"].forEach(k =>
+        queryClient.invalidateQueries({ queryKey: [`/api/portfolio/${k}`] })
+      );
+      ["budget/summary","budget/performance","assets","transactions","incomes","expenses","goals","debts","subscriptions","notes"].forEach(k =>
+        queryClient.invalidateQueries({ queryKey: [`/api/${k}`] })
+      );
+      toast({ title: "İçe Aktarma Tamamlandı", description: result.message });
+    } catch {
+      toast({ title: "Hata", description: "Dosya içe aktarılamadı — geçerli bir yedek dosyası seçin", variant: "destructive" });
+    } finally {
+      setIsImporting(false);
+      if (importFileRef.current) importFileRef.current.value = "";
+    }
+  }, [toast]);
 
   const updatePricesMutation = useMutation({
     mutationFn: async () => { const r = await apiRequest("POST", "/api/prices/update"); return r.json(); },
@@ -245,7 +297,36 @@ export default function Dashboard() {
             {lastUpdate && <span className="ml-2 text-xs text-[#4E5A6B]">(Son güncelleme: {lastUpdate})</span>}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Backup Export */}
+          <button
+            onClick={handleExport}
+            className="flex items-center gap-1.5 px-3 py-2 bg-[#151A23] border border-[rgba(255,255,255,0.06)] rounded-lg text-xs text-[#8892A4] hover:border-[rgba(0,212,170,0.3)] hover:text-[#00D4AA] transition-all"
+            title="Tüm portföy verilerini JSON olarak indir"
+            data-testid="button-backup-export"
+          >
+            <Download className="h-3.5 w-3.5" />
+            Yedek Al
+          </button>
+          {/* Backup Import */}
+          <input
+            ref={importFileRef}
+            type="file"
+            accept=".json"
+            className="hidden"
+            onChange={handleImportFile}
+            data-testid="input-backup-import"
+          />
+          <button
+            onClick={() => importFileRef.current?.click()}
+            disabled={isImporting}
+            className="flex items-center gap-1.5 px-3 py-2 bg-[#151A23] border border-[rgba(255,255,255,0.06)] rounded-lg text-xs text-[#8892A4] hover:border-[rgba(255,184,51,0.3)] hover:text-[#FFB833] transition-all disabled:opacity-50"
+            title="Yedek dosyasını içe aktar (mevcut veriler silinir)"
+            data-testid="button-backup-import"
+          >
+            <Upload className={`h-3.5 w-3.5 ${isImporting ? "animate-bounce" : ""}`} />
+            {isImporting ? "Aktarılıyor..." : "Yedek Yükle"}
+          </button>
           <button
             onClick={() => updatePricesMutation.mutate()}
             disabled={updatePricesMutation.isPending}

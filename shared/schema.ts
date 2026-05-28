@@ -1,77 +1,63 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, decimal, timestamp, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, decimal, timestamp, integer, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// Varlık türleri: Hisse, ETF, Kripto, Madeni Para, Fon
 export const assetTypeEnum = z.enum(["hisse", "etf", "kripto", "madeni_para", "fon"]);
 export type AssetType = z.infer<typeof assetTypeEnum>;
 
-// Borsa türleri: BIST (Borsa İstanbul), US (Amerikan Borsası), Diğer
 export const marketEnum = z.enum(["BIST", "US", "Diğer"]);
 export type Market = z.infer<typeof marketEnum>;
 
-// İşlem türleri: Alış, Satış
 export const transactionTypeEnum = z.enum(["alış", "satış"]);
 export type TransactionType = z.infer<typeof transactionTypeEnum>;
 
-// Varlıklar tablosu
 export const assets = pgTable("assets", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  type: text("type").notNull(), // hisse, etf, kripto, madeni_para
-  name: text("name").notNull(), // Varlık adı
-  symbol: text("symbol").notNull(), // Ticker/Symbol (örn: THYAO, AAPL, BTC)
-  market: text("market").notNull(), // BIST, US, Diğer
-  quantity: decimal("quantity", { precision: 18, scale: 8 }).notNull().default("0"), // Miktar
-  averagePrice: decimal("average_price", { precision: 18, scale: 8 }).notNull(), // Ortalama alış fiyatı
-  currentPrice: decimal("current_price", { precision: 18, scale: 8 }).notNull(), // Güncel fiyat
-  currency: text("currency").notNull().default("TRY"), // Para birimi (TRY, USD, vb.)
+  type: text("type").notNull(),
+  name: text("name").notNull(),
+  symbol: text("symbol").notNull(),
+  market: text("market").notNull(),
+  quantity: decimal("quantity", { precision: 18, scale: 8 }).notNull().default("0"),
+  averagePrice: decimal("average_price", { precision: 18, scale: 8 }).notNull(),
+  currentPrice: decimal("current_price", { precision: 18, scale: 8 }).notNull(),
+  currency: text("currency").notNull().default("TRY"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const insertAssetSchema = createInsertSchema(assets).omit({
-  id: true,
-  createdAt: true,
-});
-
+export const insertAssetSchema = createInsertSchema(assets).omit({ id: true, createdAt: true });
 export type InsertAsset = z.infer<typeof insertAssetSchema>;
 export type Asset = typeof assets.$inferSelect;
 
-// İşlemler tablosu (Alım/Satım geçmişi)
 export const transactions = pgTable("transactions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   assetId: varchar("asset_id").notNull(),
-  type: text("type").notNull(), // alış, satış
-  quantity: decimal("quantity", { precision: 18, scale: 8 }).notNull(), // Miktar
-  price: decimal("price", { precision: 18, scale: 8 }).notNull(), // İşlem fiyatı
-  totalAmount: decimal("total_amount", { precision: 18, scale: 8 }).notNull(), // Toplam tutar
+  type: text("type").notNull(),
+  quantity: decimal("quantity", { precision: 18, scale: 8 }).notNull(),
+  price: decimal("price", { precision: 18, scale: 8 }).notNull(),
+  totalAmount: decimal("total_amount", { precision: 18, scale: 8 }).notNull(),
   currency: text("currency").notNull().default("TRY"),
-  notes: text("notes"), // Notlar
-  date: timestamp("date").notNull(), // İşlem tarihi
+  notes: text("notes"),
+  date: timestamp("date").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const insertTransactionSchema = createInsertSchema(transactions, {
-  date: z.coerce.date(), // Accept string or Date, convert to Date
-}).omit({
-  id: true,
-  createdAt: true,
-});
+  date: z.coerce.date(),
+}).omit({ id: true, createdAt: true });
 
 export type InsertTransaction = z.infer<typeof insertTransactionSchema>;
 export type Transaction = typeof transactions.$inferSelect;
 
-// Portföy özeti için tip
 export type PortfolioSummary = {
-  totalAssets: number; // Toplam Varlık (market değeri)
-  totalInvested: number; // Toplam Maliyet (alış bedeli toplamı)
-  totalDebt: number; // Toplam Borç
-  netWorth: number; // Net Değer
-  monthlyChange: number; // Toplam ROI (%)
-  monthlyChangeAmount: number; // Toplam Kar/Zarar (Tutar)
+  totalAssets: number;
+  totalInvested: number;
+  totalDebt: number;
+  netWorth: number;
+  monthlyChange: number;
+  monthlyChangeAmount: number;
 };
 
-// Varlık dağılımı için tip
 export type AssetAllocation = {
   type: AssetType;
   name: string;
@@ -80,50 +66,25 @@ export type AssetAllocation = {
   color: string;
 };
 
-// Aylık performans için tip
 export type MonthlyPerformance = {
   month: string;
   value: number;
 };
 
-// Varlık detay görünümü için tip (tabloda gösterilecek)
 export type AssetDetail = Asset & {
-  totalValue: number; // Toplam Değer (quantity * currentPrice) - native currency
-  totalValueTRY: number; // Toplam Değer TRY cinsinden (dönüşüm yapılmış)
-  change: number; // Değişim (%)
-  changeAmount: number; // Değişim (Tutar)
-  profit: number; // Kar/Zarar - native currency
-  profitTRY: number; // Kar/Zarar TRY cinsinden
+  totalValue: number;
+  totalValueTRY: number;
+  change: number;
+  changeAmount: number;
+  profit: number;
+  profitTRY: number;
 };
 
-// Gelir/Gider kategorileri
-export const incomeCategories = [
-  "maaş",
-  "kira",
-  "temettü",
-  "faiz",
-  "serbest",
-  "diğer",
-] as const;
-
-export const expenseCategories = [
-  "market",
-  "faturalar",
-  "ulaşım",
-  "sağlık",
-  "eğlence",
-  "giyim",
-  "yemek",
-  "kira",
-  "kredi",
-  "sigorta",
-  "diğer",
-] as const;
-
+export const incomeCategories = ["maaş", "kira", "temettü", "faiz", "serbest", "diğer"] as const;
+export const expenseCategories = ["market", "faturalar", "ulaşım", "sağlık", "eğlence", "giyim", "yemek", "kira", "kredi", "sigorta", "diğer"] as const;
 export type IncomeCategory = typeof incomeCategories[number];
 export type ExpenseCategory = typeof expenseCategories[number];
 
-// Gelirler tablosu
 export const incomes = pgTable("incomes", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   category: text("category").notNull(),
@@ -135,17 +96,10 @@ export const incomes = pgTable("incomes", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const insertIncomeSchema = createInsertSchema(incomes, {
-  date: z.coerce.date(),
-}).omit({
-  id: true,
-  createdAt: true,
-});
-
+export const insertIncomeSchema = createInsertSchema(incomes, { date: z.coerce.date() }).omit({ id: true, createdAt: true });
 export type InsertIncome = z.infer<typeof insertIncomeSchema>;
 export type Income = typeof incomes.$inferSelect;
 
-// Giderler tablosu
 export const expenses = pgTable("expenses", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   category: text("category").notNull(),
@@ -157,17 +111,10 @@ export const expenses = pgTable("expenses", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const insertExpenseSchema = createInsertSchema(expenses, {
-  date: z.coerce.date(),
-}).omit({
-  id: true,
-  createdAt: true,
-});
-
+export const insertExpenseSchema = createInsertSchema(expenses, { date: z.coerce.date() }).omit({ id: true, createdAt: true });
 export type InsertExpense = z.infer<typeof insertExpenseSchema>;
 export type Expense = typeof expenses.$inferSelect;
 
-// Hedefler tablosu
 export const goals = pgTable("goals", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   title: text("title").notNull(),
@@ -181,19 +128,14 @@ export const goals = pgTable("goals", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const insertGoalSchema = createInsertSchema(goals).omit({
-  id: true,
-  createdAt: true,
-});
-
+export const insertGoalSchema = createInsertSchema(goals).omit({ id: true, createdAt: true });
 export type InsertGoal = z.infer<typeof insertGoalSchema>;
 export type Goal = typeof goals.$inferSelect;
 
-// Borçlar tablosu
 export const debts = pgTable("debts", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
-  type: text("type").notNull().default("loan"), // credit, auto, loan, personal, mortgage
+  type: text("type").notNull().default("loan"),
   emoji: text("emoji").notNull().default("💳"),
   interestRate: decimal("interest_rate", { precision: 8, scale: 4 }).notNull().default("0"),
   totalAmount: decimal("total_amount", { precision: 18, scale: 2 }).notNull(),
@@ -206,10 +148,7 @@ export const debts = pgTable("debts", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const insertDebtSchema = createInsertSchema(debts).omit({
-  id: true,
-  createdAt: true,
-}).extend({
+export const insertDebtSchema = createInsertSchema(debts).omit({ id: true, createdAt: true }).extend({
   dueDay: z.union([z.number().int(), z.null()]).optional(),
   endDate: z.string().nullish().transform(v => v || null),
   notes: z.string().nullish().transform(v => v || null),
@@ -218,7 +157,6 @@ export const insertDebtSchema = createInsertSchema(debts).omit({
 export type InsertDebt = z.infer<typeof insertDebtSchema>;
 export type Debt = typeof debts.$inferSelect;
 
-// Abonelikler tablosu
 export const subscriptions = pgTable("subscriptions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
@@ -231,15 +169,10 @@ export const subscriptions = pgTable("subscriptions", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const insertSubscriptionSchema = createInsertSchema(subscriptions).omit({
-  id: true,
-  createdAt: true,
-});
-
+export const insertSubscriptionSchema = createInsertSchema(subscriptions).omit({ id: true, createdAt: true });
 export type InsertSubscription = z.infer<typeof insertSubscriptionSchema>;
 export type Subscription = typeof subscriptions.$inferSelect;
 
-// Bütçe özeti tipi
 export type BudgetSummary = {
   totalIncome: number;
   totalExpense: number;
@@ -247,3 +180,37 @@ export type BudgetSummary = {
   incomeByCategory: { category: string; amount: number; percentage: number }[];
   expenseByCategory: { category: string; amount: number; percentage: number }[];
 };
+
+// ─── Not Defteri ────────────────────────────────────────────────────────────────
+export const notes = pgTable("notes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: text("title").notNull(),
+  content: text("content").notNull().default(""),
+  category: text("category").notNull().default("other"),
+  tags: text("tags").array().notNull().default(sql`'{}'::text[]`),
+  mood: text("mood"),
+  assetTicker: text("asset_ticker"),
+  isPinned: integer("is_pinned").notNull().default(0),
+  isArchived: integer("is_archived").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertNoteSchema = createInsertSchema(notes).omit({ id: true, createdAt: true, updatedAt: true }).extend({
+  tags: z.array(z.string()).optional().default([]),
+  mood: z.string().nullish().transform(v => v || null),
+  assetTicker: z.string().nullish().transform(v => v || null),
+});
+
+export type InsertNote = z.infer<typeof insertNoteSchema>;
+export type Note = typeof notes.$inferSelect;
+
+// ─── Bütçe Bakiye Anlık Görüntüsü ───────────────────────────────────────────
+export const budgetSnapshots = pgTable("budget_balance_snapshots", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  date: text("date").notNull(), // 'YYYY-MM-DD'
+  balance: decimal("balance", { precision: 18, scale: 2 }).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export type BudgetSnapshot = typeof budgetSnapshots.$inferSelect;

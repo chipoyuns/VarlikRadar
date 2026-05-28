@@ -16,6 +16,7 @@ import Debts from "@/pages/borclar";
 import Simulator from "@/pages/simulator";
 import AICoach from "@/pages/ai-koc";
 import AdminPage from "@/pages/admin";
+import NotesPage from "@/pages/notes";
 import NotFound from "@/pages/not-found";
 
 const ACCENT_COLORS: Record<string, string> = {
@@ -32,20 +33,16 @@ function applyAppearanceGlobal() {
     if (!stored) return;
     const s = JSON.parse(stored);
     const root = document.documentElement;
-
     const accentHex = ACCENT_COLORS[s.accentColor] ?? "#00D4AA";
     root.style.setProperty("--accent-primary", accentHex);
     root.style.setProperty("--accent-bg", `${accentHex}15`);
     root.style.setProperty("--accent-border", `${accentHex}30`);
-
     const theme = s.theme === "system"
       ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
       : (s.theme ?? "dark");
     root.setAttribute("data-theme", theme);
-
     const fontSizeMap: Record<string, string> = { small: "13px", normal: "15px", large: "17px" };
     root.style.setProperty("--app-font-size", fontSizeMap[s.fontSize] ?? "15px");
-
     if (!s.animations) root.style.setProperty("--transition-speed", "0ms");
     else root.style.removeProperty("--transition-speed");
   } catch {}
@@ -58,6 +55,7 @@ function Router() {
     <Switch>
       <Route path="/" component={Dashboard} />
       <Route path="/islemler" component={Transactions} />
+      <Route path="/not-defteri" component={NotesPage} />
       <Route path="/butce" component={Budget} />
       <Route path="/hedefler" component={Goals} />
       <Route path="/borclar" component={Debts} />

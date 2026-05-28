@@ -1,4 +1,4 @@
-import { Trash2, TrendingUp, TrendingDown, Pencil } from "lucide-react";
+import { Trash2, TrendingUp, TrendingDown, Pencil, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -11,6 +11,9 @@ interface AssetTableProps {
   searchTerm?: string;
 }
 
+type SortColumn = "totalValue" | "change" | "profitTRY" | null;
+type SortDir = "asc" | "desc";
+
 const TYPE_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
   hisse:       { label: "Hisse",  color: "#4B9EFF", bg: "rgba(75,158,255,0.12)" },
   etf:         { label: "ETF",    color: "#00D4AA", bg: "rgba(0,212,170,0.12)" },
@@ -19,9 +22,27 @@ const TYPE_CONFIG: Record<string, { label: string; color: string; bg: string }> 
   madeni_para: { label: "Emtia",  color: "#FF8E53", bg: "rgba(255,142,83,0.12)" },
 };
 
+function SortIcon({ col, active, dir }: { col: SortColumn; active: SortColumn; dir: SortDir }) {
+  if (active !== col) return <ArrowUpDown className="h-3 w-3 ml-1 text-[#4E5A6B] opacity-50" />;
+  return dir === "asc"
+    ? <ArrowUp className="h-3 w-3 ml-1 text-[#00D4AA]" />
+    : <ArrowDown className="h-3 w-3 ml-1 text-[#00D4AA]" />;
+}
+
 export function AssetTable({ assets, searchTerm = "" }: AssetTableProps) {
   const { toast } = useToast();
   const [editAsset, setEditAsset] = useState<AssetDetail | null>(null);
+  const [sortCol, setSortCol] = useState<SortColumn>(null);
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+
+  const handleSort = (col: SortColumn) => {
+    if (sortCol === col) {
+      setSortDir(d => d === "desc" ? "asc" : "desc");
+    } else {
+      setSortCol(col);
+      setSortDir("desc");
+    }
+  };
 
   const filteredAssets = assets.filter((asset) => {
     const term = searchTerm.trim().toLowerCase();
@@ -31,7 +52,16 @@ export function AssetTable({ assets, searchTerm = "" }: AssetTableProps) {
     );
   });
 
-  /* Alt Toplam hesaplamaları (hepsi TRY cinsinden) */
+  const sortedAssets = sortCol
+    ? [...filteredAssets].sort((a, b) => {
+        let aVal = 0, bVal = 0;
+        if (sortCol === "totalValue") { aVal = a.totalValueTRY || 0; bVal = b.totalValueTRY || 0; }
+        if (sortCol === "change")     { aVal = a.change || 0;         bVal = b.change || 0; }
+        if (sortCol === "profitTRY")  { aVal = a.profitTRY || 0;      bVal = b.profitTRY || 0; }
+        return sortDir === "desc" ? bVal - aVal : aVal - bVal;
+      })
+    : filteredAssets;
+
   const subtotalValueTRY = filteredAssets.reduce((sum, a) => sum + (a.totalValueTRY || 0), 0);
   const subtotalProfitTRY = filteredAssets.reduce((sum, a) => sum + (a.profitTRY || 0), 0);
   const weightedChange = subtotalValueTRY > 0
@@ -39,9 +69,8 @@ export function AssetTable({ assets, searchTerm = "" }: AssetTableProps) {
     : 0;
   const subtotalCount = filteredAssets.length;
 
-  const fmtTRY = (amount: number) => {
-    return `₺${amount.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  };
+  const fmtTRY = (amount: number) =>
+    `₺${amount.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => await apiRequest("DELETE", `/api/assets/${id}`, undefined),
@@ -56,10 +85,6 @@ export function AssetTable({ assets, searchTerm = "" }: AssetTableProps) {
 
   const smartDecimals = (v: number): number => {
     if (v === 0 || v >= 1) return 2;
-    // Use significant-digit logic: show 4 significant digits for sub-$1 prices
-    // e.g. 0.1085 → magnitude=-1 → 4 decimals → "0,1085" ✓
-    //      0.04003 → magnitude=-2 → 5 decimals → "0,04003" ✓
-    //      0.004003 → magnitude=-3 → 6 decimals → "0,004003" ✓
     const magnitude = Math.floor(Math.log10(Math.abs(v)));
     return Math.min(8, -magnitude + 3);
   };
@@ -82,21 +107,38 @@ export function AssetTable({ assets, searchTerm = "" }: AssetTableProps) {
     );
   }
 
+  const sortableHeader = (label: string, col: SortColumn) => (
+    <th
+      className="pb-3 text-xs font-medium text-[#4E5A6B] uppercase tracking-wider text-right cursor-pointer select-none group"
+      onClick={() => handleSort(col)}
+    >
+      <span className="inline-flex items-center justify-end gap-0.5 hover:text-[#F0F2F7] transition-colors">
+        {label}
+        <SortIcon col={col} active={sortCol} dir={sortDir} />
+      </span>
+    </th>
+  );
+
   return (
     <>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[780px]">
           <thead>
             <tr className="border-b border-[rgba(255,255,255,0.05)]">
-              {["Varlık", "Tip", "Borsa", "Miktar", "Ort. Fiyat", "Güncel Fiyat", "Toplam Değer", "Değişim", "Kar/Zarar", ""].map((h, i) => (
-                <th key={i} className={`pb-3 text-xs font-medium text-[#4E5A6B] uppercase tracking-wider ${i >= 3 && i <= 8 ? "text-right" : "text-left"} ${i === 9 ? "w-20" : ""}`}>
-                  {h}
-                </th>
-              ))}
+              <th className="pb-3 text-xs font-medium text-[#4E5A6B] uppercase tracking-wider text-left">Varlık</th>
+              <th className="pb-3 text-xs font-medium text-[#4E5A6B] uppercase tracking-wider text-left">Tip</th>
+              <th className="pb-3 text-xs font-medium text-[#4E5A6B] uppercase tracking-wider text-left">Borsa</th>
+              <th className="pb-3 text-xs font-medium text-[#4E5A6B] uppercase tracking-wider text-right">Miktar</th>
+              <th className="pb-3 text-xs font-medium text-[#4E5A6B] uppercase tracking-wider text-right">Ort. Fiyat</th>
+              <th className="pb-3 text-xs font-medium text-[#4E5A6B] uppercase tracking-wider text-right">Güncel Fiyat</th>
+              {sortableHeader("Toplam Değer", "totalValue")}
+              {sortableHeader("Değişim", "change")}
+              {sortableHeader("Kar/Zarar", "profitTRY")}
+              <th className="pb-3 w-20"></th>
             </tr>
           </thead>
           <tbody>
-            {filteredAssets.map((asset) => {
+            {sortedAssets.map((asset) => {
               const cfg = TYPE_CONFIG[asset.type] || { label: asset.type, color: "#8892A4", bg: "rgba(136,146,164,0.1)" };
               const pnl = asset.profit ?? 0;
               const change = asset.change ?? 0;
@@ -141,7 +183,9 @@ export function AssetTable({ assets, searchTerm = "" }: AssetTableProps) {
                     <span className="text-sm font-mono text-[#F0F2F7] font-medium">{fmtCurrency(Number(asset.currentPrice), asset.currency)}</span>
                   </td>
                   <td className="py-3.5 pr-4 text-right">
-                    <span className="text-sm font-mono font-semibold text-[#F0F2F7]">{fmtCurrency(asset.totalValue, asset.currency)}</span>
+                    <span className={`text-sm font-mono font-semibold text-[#F0F2F7] ${sortCol === "totalValue" ? "text-[#FFB833]" : ""}`}>
+                      {fmtCurrency(asset.totalValue, asset.currency)}
+                    </span>
                   </td>
                   <td className="py-3.5 pr-4 text-right">
                     <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-mono font-semibold ${isPos ? "bg-[rgba(0,212,170,0.1)] text-[#00D4AA]" : "bg-[rgba(255,71,87,0.1)] text-[#FF4757]"}`}>
@@ -156,19 +200,14 @@ export function AssetTable({ assets, searchTerm = "" }: AssetTableProps) {
                   </td>
                   <td className="py-3.5">
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button
-                        onClick={() => setEditAsset(asset)}
+                      <button onClick={() => setEditAsset(asset)}
                         className="p-1.5 rounded-lg hover:bg-[rgba(75,158,255,0.1)] text-[#4E5A6B] hover:text-[#4B9EFF] transition-colors"
-                        data-testid={`button-edit-${asset.id}`}
-                      >
+                        data-testid={`button-edit-${asset.id}`}>
                         <Pencil className="h-3.5 w-3.5" />
                       </button>
-                      <button
-                        onClick={() => deleteMutation.mutate(asset.id)}
-                        disabled={deleteMutation.isPending}
+                      <button onClick={() => deleteMutation.mutate(asset.id)} disabled={deleteMutation.isPending}
                         className="p-1.5 rounded-lg hover:bg-[rgba(255,71,87,0.1)] text-[#4E5A6B] hover:text-[#FF4757] transition-colors"
-                        data-testid={`button-delete-${asset.id}`}
-                      >
+                        data-testid={`button-delete-${asset.id}`}>
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </div>
@@ -182,9 +221,7 @@ export function AssetTable({ assets, searchTerm = "" }: AssetTableProps) {
               <td className="py-3.5 pr-4" colSpan={3}>
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-semibold text-[#00D4AA]">Alt Toplam</span>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[rgba(0,212,170,0.15)] text-[#00D4AA]">
-                    {subtotalCount} varlık
-                  </span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[rgba(0,212,170,0.15)] text-[#00D4AA]">{subtotalCount} varlık</span>
                 </div>
               </td>
               <td className="py-3.5 pr-4" colSpan={3}></td>

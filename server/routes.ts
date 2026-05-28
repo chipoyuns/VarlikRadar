@@ -1,167 +1,112 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertAssetSchema, insertTransactionSchema, insertIncomeSchema, insertExpenseSchema, insertGoalSchema, insertDebtSchema, insertSubscriptionSchema } from "@shared/schema";
+import {
+  insertAssetSchema, insertTransactionSchema, insertIncomeSchema, insertExpenseSchema,
+  insertGoalSchema, insertDebtSchema, insertSubscriptionSchema, insertNoteSchema
+} from "@shared/schema";
 import { updateAllAssetPrices, fetchSingleAssetPrice, fetchExchangeRates } from "./services/priceService";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Asset routes
   app.get("/api/assets", async (req, res) => {
-    try {
-      const assets = await storage.getAssets();
-      res.json(assets);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch assets" });
-    }
+    try { res.json(await storage.getAssets()); } catch { res.status(500).json({ error: "Failed to fetch assets" }); }
   });
 
   app.get("/api/assets/:id", async (req, res) => {
     try {
       const asset = await storage.getAsset(req.params.id);
-      if (!asset) {
-        return res.status(404).json({ error: "Asset not found" });
-      }
+      if (!asset) return res.status(404).json({ error: "Asset not found" });
       res.json(asset);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch asset" });
-    }
+    } catch { res.status(500).json({ error: "Failed to fetch asset" }); }
   });
 
   app.post("/api/assets", async (req, res) => {
     try {
       const validated = insertAssetSchema.parse(req.body);
-      const asset = await storage.createAsset(validated);
-      res.status(201).json(asset);
-    } catch (error) {
-      res.status(400).json({ error: "Invalid asset data" });
-    }
+      res.status(201).json(await storage.createAsset(validated));
+    } catch { res.status(400).json({ error: "Invalid asset data" }); }
   });
 
   app.patch("/api/assets/:id", async (req, res) => {
     try {
       const validated = insertAssetSchema.partial().parse(req.body);
       const asset = await storage.updateAsset(req.params.id, validated);
-      if (!asset) {
-        return res.status(404).json({ error: "Asset not found" });
-      }
+      if (!asset) return res.status(404).json({ error: "Asset not found" });
       res.json(asset);
-    } catch (error) {
-      res.status(400).json({ error: "Invalid asset data" });
-    }
+    } catch { res.status(400).json({ error: "Invalid asset data" }); }
   });
 
   app.delete("/api/assets/:id", async (req, res) => {
     try {
       const deleted = await storage.deleteAsset(req.params.id);
-      if (!deleted) {
-        return res.status(404).json({ error: "Asset not found" });
-      }
+      if (!deleted) return res.status(404).json({ error: "Asset not found" });
       res.status(204).send();
-    } catch (error) {
-      res.status(500).json({ error: "Failed to delete asset" });
-    }
+    } catch { res.status(500).json({ error: "Failed to delete asset" }); }
   });
 
   // Transaction routes
   app.get("/api/transactions", async (req, res) => {
-    try {
-      const transactions = await storage.getTransactions();
-      res.json(transactions);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch transactions" });
-    }
+    try { res.json(await storage.getTransactions()); } catch { res.status(500).json({ error: "Failed to fetch transactions" }); }
   });
 
   app.get("/api/transactions/:id", async (req, res) => {
     try {
-      const transaction = await storage.getTransaction(req.params.id);
-      if (!transaction) {
-        return res.status(404).json({ error: "Transaction not found" });
-      }
-      res.json(transaction);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch transaction" });
-    }
+      const tx = await storage.getTransaction(req.params.id);
+      if (!tx) return res.status(404).json({ error: "Transaction not found" });
+      res.json(tx);
+    } catch { res.status(500).json({ error: "Failed to fetch transaction" }); }
   });
 
   app.get("/api/assets/:assetId/transactions", async (req, res) => {
-    try {
-      const transactions = await storage.getTransactionsByAsset(req.params.assetId);
-      res.json(transactions);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch transactions" });
-    }
+    try { res.json(await storage.getTransactionsByAsset(req.params.assetId)); }
+    catch { res.status(500).json({ error: "Failed to fetch transactions" }); }
   });
 
   app.post("/api/transactions", async (req, res) => {
     try {
       const validated = insertTransactionSchema.parse(req.body);
-      const transaction = await storage.createTransaction(validated);
-      res.status(201).json(transaction);
-    } catch (error) {
-      res.status(400).json({ error: "Invalid transaction data" });
-    }
+      res.status(201).json(await storage.createTransaction(validated));
+    } catch { res.status(400).json({ error: "Invalid transaction data" }); }
   });
 
   app.patch("/api/transactions/:id", async (req, res) => {
     try {
       const validated = insertTransactionSchema.partial().parse(req.body);
-      const transaction = await storage.updateTransaction(req.params.id, validated);
-      if (!transaction) {
-        return res.status(404).json({ error: "Transaction not found" });
-      }
-      res.json(transaction);
-    } catch (error) {
-      res.status(400).json({ error: "Invalid transaction data" });
-    }
+      const tx = await storage.updateTransaction(req.params.id, validated);
+      if (!tx) return res.status(404).json({ error: "Transaction not found" });
+      res.json(tx);
+    } catch { res.status(400).json({ error: "Invalid transaction data" }); }
   });
 
   app.delete("/api/transactions/:id", async (req, res) => {
     try {
       const deleted = await storage.deleteTransaction(req.params.id);
-      if (!deleted) {
-        return res.status(404).json({ error: "Transaction not found" });
-      }
+      if (!deleted) return res.status(404).json({ error: "Transaction not found" });
       res.status(204).send();
-    } catch (error) {
-      res.status(500).json({ error: "Failed to delete transaction" });
-    }
+    } catch { res.status(500).json({ error: "Failed to delete transaction" }); }
   });
 
-  // Portfolio analytics routes
+  // Portfolio analytics
   app.get("/api/portfolio/summary", async (req, res) => {
-    try {
-      const summary = await storage.getPortfolioSummary();
-      res.json(summary);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch portfolio summary" });
-    }
+    try { res.json(await storage.getPortfolioSummary()); } catch { res.status(500).json({ error: "Failed to fetch portfolio summary" }); }
   });
 
   app.get("/api/portfolio/allocation", async (req, res) => {
-    try {
-      const allocation = await storage.getAssetAllocation();
-      res.json(allocation);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch asset allocation" });
-    }
+    try { res.json(await storage.getAssetAllocation()); } catch { res.status(500).json({ error: "Failed to fetch asset allocation" }); }
   });
 
   app.get("/api/portfolio/performance", async (req, res) => {
     try {
       const period = (req.query.period as string) || "monthly";
-      const performance = await storage.getMonthlyPerformance(period);
-      res.json(performance);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch performance" });
-    }
+      res.json(await storage.getMonthlyPerformance(period));
+    } catch { res.status(500).json({ error: "Failed to fetch performance" }); }
   });
 
   app.get("/api/benchmark", async (req, res) => {
     try {
       const { fetchBenchmarkData } = await import("./services/benchmarkService");
-      const data = await fetchBenchmarkData();
-      res.json(data);
+      res.json(await fetchBenchmarkData());
     } catch (error) {
       console.error("Benchmark error:", error);
       res.status(500).json({ error: "Failed to fetch benchmark data" });
@@ -169,26 +114,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.get("/api/portfolio/details", async (req, res) => {
-    try {
-      const details = await storage.getAssetDetails();
-      res.json(details);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch asset details" });
-    }
+    try { res.json(await storage.getAssetDetails()); } catch { res.status(500).json({ error: "Failed to fetch asset details" }); }
   });
 
-  // Price update routes
+  // Price routes
   app.post("/api/prices/update", async (req, res) => {
     try {
       const results = await updateAllAssetPrices();
       const successful = results.filter(r => r.success).length;
       const failed = results.filter(r => !r.success).length;
-      
-      res.json({
-        message: `Fiyatlar güncellendi: ${successful} başarılı, ${failed} başarısız`,
-        results,
-        updatedAt: new Date().toISOString(),
-      });
+      res.json({ message: `Fiyatlar güncellendi: ${successful} başarılı, ${failed} başarısız`, results, updatedAt: new Date().toISOString() });
     } catch (error) {
       console.error("Price update error:", error);
       res.status(500).json({ error: "Fiyatlar güncellenirken hata oluştu" });
@@ -199,28 +134,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { symbol } = req.params;
       const { type, market } = req.query;
-      
-      if (!type || !market) {
-        return res.status(400).json({ error: "type and market query params required" });
-      }
-      
-      const price = await fetchSingleAssetPrice(
-        symbol,
-        type as string,
-        market as string
-      );
-      
-      if (price === null) {
-        return res.status(404).json({ error: "Price not found" });
-      }
-      
+      if (!type || !market) return res.status(400).json({ error: "type and market query params required" });
+      const price = await fetchSingleAssetPrice(symbol, type as string, market as string);
+      if (price === null) return res.status(404).json({ error: "Price not found" });
       res.json({ symbol, price, fetchedAt: new Date().toISOString() });
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch price" });
-    }
+    } catch { res.status(500).json({ error: "Failed to fetch price" }); }
   });
 
-  // Exchange rates endpoint
   app.get("/api/exchange-rates", async (req, res) => {
     try {
       const rates = await fetchExchangeRates();
@@ -233,178 +153,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Income routes
   app.get("/api/incomes", async (req, res) => {
-    try {
-      const incomes = await storage.getIncomes();
-      res.json(incomes);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch incomes" });
-    }
+    try { res.json(await storage.getIncomes()); } catch { res.status(500).json({ error: "Failed to fetch incomes" }); }
   });
 
   app.post("/api/incomes", async (req, res) => {
     try {
       const validated = insertIncomeSchema.parse(req.body);
-      const income = await storage.createIncome(validated);
-      res.status(201).json(income);
-    } catch (error) {
-      res.status(400).json({ error: "Invalid income data" });
-    }
+      res.status(201).json(await storage.createIncome(validated));
+    } catch { res.status(400).json({ error: "Invalid income data" }); }
   });
 
   app.delete("/api/incomes/:id", async (req, res) => {
     try {
       const deleted = await storage.deleteIncome(req.params.id);
-      if (!deleted) {
-        return res.status(404).json({ error: "Income not found" });
-      }
+      if (!deleted) return res.status(404).json({ error: "Income not found" });
       res.status(204).send();
-    } catch (error) {
-      res.status(500).json({ error: "Failed to delete income" });
-    }
+    } catch { res.status(500).json({ error: "Failed to delete income" }); }
   });
 
   // Expense routes
   app.get("/api/expenses", async (req, res) => {
-    try {
-      const expenses = await storage.getExpenses();
-      res.json(expenses);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch expenses" });
-    }
+    try { res.json(await storage.getExpenses()); } catch { res.status(500).json({ error: "Failed to fetch expenses" }); }
   });
 
   app.post("/api/expenses", async (req, res) => {
     try {
       const validated = insertExpenseSchema.parse(req.body);
-      const expense = await storage.createExpense(validated);
-      res.status(201).json(expense);
-    } catch (error) {
-      res.status(400).json({ error: "Invalid expense data" });
-    }
+      res.status(201).json(await storage.createExpense(validated));
+    } catch { res.status(400).json({ error: "Invalid expense data" }); }
   });
 
   app.delete("/api/expenses/:id", async (req, res) => {
     try {
       const deleted = await storage.deleteExpense(req.params.id);
-      if (!deleted) {
-        return res.status(404).json({ error: "Expense not found" });
-      }
+      if (!deleted) return res.status(404).json({ error: "Expense not found" });
       res.status(204).send();
-    } catch (error) {
-      res.status(500).json({ error: "Failed to delete expense" });
-    }
+    } catch { res.status(500).json({ error: "Failed to delete expense" }); }
   });
 
-  // Budget summary route
+  // Budget summary
   app.get("/api/budget/summary", async (req, res) => {
     try {
       const { startDate, endDate } = req.query;
-      const summary = await storage.getBudgetSummary(
+      res.json(await storage.getBudgetSummary(
         startDate ? new Date(startDate as string) : undefined,
         endDate ? new Date(endDate as string) : undefined
-      );
-      res.json(summary);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch budget summary" });
-    }
+      ));
+    } catch { res.status(500).json({ error: "Failed to fetch budget summary" }); }
   });
 
-  // Backup export endpoint
-  app.get("/api/backup/export", async (req, res) => {
-    try {
-      const [assets, transactions, incomes, expenses] = await Promise.all([
-        storage.getAssets(),
-        storage.getTransactions(),
-        storage.getIncomes(),
-        storage.getExpenses(),
-      ]);
-      const backup = {
-        version: "1.0",
-        exportedAt: new Date().toISOString(),
-        platform: "Portföy Takip",
-        data: { assets, transactions, incomes, expenses },
-      };
-      res.setHeader("Content-Disposition", `attachment; filename="portfoy_yedek_${new Date().toISOString().slice(0, 10)}.json"`);
-      res.setHeader("Content-Type", "application/json");
-      res.json(backup);
-    } catch (error) {
-      res.status(500).json({ error: "Yedek alınamadı" });
-    }
-  });
-
-  // Backup import endpoint
-  app.post("/api/backup/import", async (req, res) => {
-    try {
-      const { assets: assetsData, transactions: txData, incomes: incomesData, expenses: expensesData } = req.body;
-      let imported = { assets: 0, transactions: 0, incomes: 0, expenses: 0 };
-
-      if (Array.isArray(assetsData)) {
-        for (const a of assetsData) {
-          try {
-            const validated = insertAssetSchema.parse({
-              type: a.type, name: a.name, symbol: a.symbol, market: a.market,
-              quantity: a.quantity, averagePrice: a.averagePrice,
-              currentPrice: a.currentPrice, currency: a.currency,
-            });
-            await storage.createAsset(validated);
-            imported.assets++;
-          } catch {}
-        }
-      }
-
-      if (Array.isArray(txData)) {
-        for (const t of txData) {
-          try {
-            const validated = insertTransactionSchema.parse({
-              assetId: t.assetId, type: t.type, quantity: t.quantity,
-              price: t.price, totalAmount: t.totalAmount,
-              currency: t.currency, notes: t.notes, date: t.date,
-            });
-            await storage.createTransaction(validated);
-            imported.transactions++;
-          } catch {}
-        }
-      }
-
-      if (Array.isArray(incomesData)) {
-        for (const i of incomesData) {
-          try {
-            const validated = insertIncomeSchema.parse({
-              category: i.category, description: i.description,
-              amount: i.amount, currency: i.currency,
-              date: i.date, isRecurring: i.isRecurring || 0,
-            });
-            await storage.createIncome(validated);
-            imported.incomes++;
-          } catch {}
-        }
-      }
-
-      if (Array.isArray(expensesData)) {
-        for (const e of expensesData) {
-          try {
-            const validated = insertExpenseSchema.parse({
-              category: e.category, description: e.description,
-              amount: e.amount, currency: e.currency,
-              date: e.date, isRecurring: e.isRecurring || 0,
-            });
-            await storage.createExpense(validated);
-            imported.expenses++;
-          } catch {}
-        }
-      }
-
-      res.json({
-        message: `İçe aktarma tamamlandı: ${imported.assets} varlık, ${imported.transactions} işlem, ${imported.incomes} gelir, ${imported.expenses} gider`,
-        imported,
-      });
-    } catch (error) {
-      console.error("Backup import error:", error);
-      res.status(500).json({ error: "İçe aktarma sırasında hata oluştu" });
-    }
-  });
-
-  // Budget balance performance over time
+  // Budget balance performance — saves daily snapshot on each call
   app.get("/api/budget/performance", async (req, res) => {
     try {
       const period = (req.query.period as string) || "monthly";
@@ -412,59 +210,99 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const portfolioKarZarar = parseFloat((req.query.portfolioKarZarar as string) || "0") || 0;
       const [allIncomes, allExpenses] = await Promise.all([storage.getIncomes(), storage.getExpenses()]);
       const now = new Date();
+      const todayStr = now.toISOString().slice(0, 10);
+
+      // Save today's snapshot
+      const todayIncomeTotal = allIncomes.reduce((s, i) => s + (Number(i.amount) || 0), 0);
+      const todayExpenseTotal = allExpenses.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+      const todayBalance = kasaValue + todayIncomeTotal + portfolioKarZarar - todayExpenseTotal;
+      await storage.saveBudgetSnapshot(todayStr, todayBalance);
 
       const MONTH_NAMES = ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
 
-      type Point = { label: string; end: Date };
-      const points: Point[] = [];
-
       if (period === "daily") {
+        // Build last 30 days, use snapshots where available, calc otherwise
+        const points: { label: string; date: string; end: Date }[] = [];
         for (let i = 29; i >= 0; i--) {
           const d = new Date(now); d.setDate(d.getDate() - i);
+          const dateStr = d.toISOString().slice(0, 10);
           const end = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59);
-          points.push({ label: `${d.getDate()}.${d.getMonth() + 1}`, end });
+          points.push({ label: `${d.getDate()}.${d.getMonth() + 1}`, date: dateStr, end });
         }
-      } else if (period === "weekly") {
+        // Fetch all snapshots
+        const snapshots = await storage.getBudgetSnapshots(365);
+        const snapMap = new Map(snapshots.map(s => [s.date, Number(s.balance)]));
+
+        const result = points.map(point => {
+          if (snapMap.has(point.date)) {
+            return { month: point.label, value: snapMap.get(point.date)! };
+          }
+          const incomeTotal = allIncomes.filter(i => new Date(i.date) <= point.end).reduce((s, i) => s + Number(i.amount || 0), 0);
+          const expenseTotal = allExpenses.filter(e => new Date(e.date) <= point.end).reduce((s, e) => s + Number(e.amount || 0), 0);
+          return { month: point.label, value: kasaValue + incomeTotal + portfolioKarZarar - expenseTotal };
+        });
+        return res.json(result);
+      }
+
+      if (period === "weekly") {
+        const points: { label: string; end: Date; weekEnd: string }[] = [];
         for (let i = 11; i >= 0; i--) {
           const d = new Date(now); d.setDate(d.getDate() - i * 7);
           const end = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59);
-          points.push({ label: `H${12 - i}`, end });
+          points.push({ label: `H${12 - i}`, end, weekEnd: d.toISOString().slice(0, 10) });
         }
-      } else {
-        for (let i = 11; i >= 0; i--) {
-          const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-          const end = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59);
-          points.push({ label: MONTH_NAMES[d.getMonth()], end });
-        }
+        const snapshots = await storage.getBudgetSnapshots(365);
+        const snapMap = new Map(snapshots.map(s => [s.date, Number(s.balance)]));
+        const result = points.map(point => {
+          if (snapMap.has(point.weekEnd)) {
+            return { month: point.label, value: snapMap.get(point.weekEnd)! };
+          }
+          const incomeTotal = allIncomes.filter(i => new Date(i.date) <= point.end).reduce((s, i) => s + Number(i.amount || 0), 0);
+          const expenseTotal = allExpenses.filter(e => new Date(e.date) <= point.end).reduce((s, e) => s + Number(e.amount || 0), 0);
+          return { month: point.label, value: kasaValue + incomeTotal + portfolioKarZarar - expenseTotal };
+        });
+        return res.json(result);
       }
 
+      // Monthly
+      const points: { label: string; end: Date; monthStr: string }[] = [];
+      for (let i = 11; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const end = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59);
+        const monthStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        points.push({ label: MONTH_NAMES[d.getMonth()], end, monthStr });
+      }
+      const snapshots = await storage.getBudgetSnapshots(400);
+      // Group snapshots by YYYY-MM
+      const monthSnapMap = new Map<string, number>();
+      for (const snap of snapshots) {
+        const monthKey = snap.date.slice(0, 7);
+        monthSnapMap.set(monthKey, Number(snap.balance));
+      }
       const result = points.map(point => {
-        const incomeTotal = allIncomes.filter(inc => new Date(inc.date) <= point.end).reduce((s, inc) => s + parseFloat(inc.amount), 0);
-        const expenseTotal = allExpenses.filter(exp => new Date(exp.date) <= point.end).reduce((s, exp) => s + parseFloat(exp.amount), 0);
+        if (monthSnapMap.has(point.monthStr)) {
+          return { month: point.label, value: monthSnapMap.get(point.monthStr)! };
+        }
+        const incomeTotal = allIncomes.filter(i => new Date(i.date) <= point.end).reduce((s, i) => s + Number(i.amount || 0), 0);
+        const expenseTotal = allExpenses.filter(e => new Date(e.date) <= point.end).reduce((s, e) => s + Number(e.amount || 0), 0);
         return { month: point.label, value: kasaValue + incomeTotal + portfolioKarZarar - expenseTotal };
       });
-
-      res.json(result);
+      return res.json(result);
     } catch (error) {
+      console.error("Budget performance error:", error);
       res.status(500).json({ error: "Failed to fetch budget performance" });
     }
   });
 
   // Subscription routes
   app.get("/api/subscriptions", async (req, res) => {
-    try {
-      const subs = await storage.getSubscriptions();
-      res.json(subs);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch subscriptions" });
-    }
+    try { res.json(await storage.getSubscriptions()); } catch { res.status(500).json({ error: "Failed to fetch subscriptions" }); }
   });
 
   app.post("/api/subscriptions", async (req, res) => {
     try {
       const validated = insertSubscriptionSchema.parse(req.body);
-      const sub = await storage.createSubscription(validated);
-      res.status(201).json(sub);
+      res.status(201).json(await storage.createSubscription(validated));
     } catch (error) {
       console.error("POST /api/subscriptions error:", error);
       res.status(400).json({ error: "Invalid subscription data", detail: String(error) });
@@ -477,9 +315,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const sub = await storage.updateSubscription(req.params.id, validated);
       if (!sub) return res.status(404).json({ error: "Subscription not found" });
       res.json(sub);
-    } catch (error) {
-      res.status(400).json({ error: "Invalid subscription data" });
-    }
+    } catch { res.status(400).json({ error: "Invalid subscription data" }); }
   });
 
   app.delete("/api/subscriptions/:id", async (req, res) => {
@@ -487,26 +323,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const deleted = await storage.deleteSubscription(req.params.id);
       if (!deleted) return res.status(404).json({ error: "Subscription not found" });
       res.status(204).send();
-    } catch (error) {
-      res.status(500).json({ error: "Failed to delete subscription" });
-    }
+    } catch { res.status(500).json({ error: "Failed to delete subscription" }); }
   });
 
   // Debt routes
   app.get("/api/debts", async (req, res) => {
-    try {
-      const debtsList = await storage.getDebts();
-      res.json(debtsList);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch debts" });
-    }
+    try { res.json(await storage.getDebts()); } catch { res.status(500).json({ error: "Failed to fetch debts" }); }
   });
 
   app.post("/api/debts", async (req, res) => {
     try {
       const validated = insertDebtSchema.parse(req.body);
-      const debt = await storage.createDebt(validated);
-      res.status(201).json(debt);
+      res.status(201).json(await storage.createDebt(validated));
     } catch (error) {
       console.error("POST /api/debts error:", error);
       res.status(400).json({ error: "Invalid debt data", detail: String(error) });
@@ -519,9 +347,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const debt = await storage.updateDebt(req.params.id, validated);
       if (!debt) return res.status(404).json({ error: "Debt not found" });
       res.json(debt);
-    } catch (error) {
-      res.status(400).json({ error: "Invalid debt data" });
-    }
+    } catch { res.status(400).json({ error: "Invalid debt data" }); }
   });
 
   app.delete("/api/debts/:id", async (req, res) => {
@@ -529,29 +355,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const deleted = await storage.deleteDebt(req.params.id);
       if (!deleted) return res.status(404).json({ error: "Debt not found" });
       res.status(204).send();
-    } catch (error) {
-      res.status(500).json({ error: "Failed to delete debt" });
-    }
+    } catch { res.status(500).json({ error: "Failed to delete debt" }); }
   });
 
   // Goals routes
   app.get("/api/goals", async (req, res) => {
-    try {
-      const goalsList = await storage.getGoals();
-      res.json(goalsList);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch goals" });
-    }
+    try { res.json(await storage.getGoals()); } catch { res.status(500).json({ error: "Failed to fetch goals" }); }
   });
 
   app.post("/api/goals", async (req, res) => {
     try {
       const validated = insertGoalSchema.parse(req.body);
-      const goal = await storage.createGoal(validated);
-      res.status(201).json(goal);
-    } catch (error) {
-      res.status(400).json({ error: "Invalid goal data" });
-    }
+      res.status(201).json(await storage.createGoal(validated));
+    } catch { res.status(400).json({ error: "Invalid goal data" }); }
   });
 
   app.patch("/api/goals/:id", async (req, res) => {
@@ -560,9 +376,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const goal = await storage.updateGoal(req.params.id, validated);
       if (!goal) return res.status(404).json({ error: "Goal not found" });
       res.json(goal);
-    } catch (error) {
-      res.status(400).json({ error: "Invalid goal data" });
-    }
+    } catch { res.status(400).json({ error: "Invalid goal data" }); }
   });
 
   app.delete("/api/goals/:id", async (req, res) => {
@@ -570,8 +384,212 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const deleted = await storage.deleteGoal(req.params.id);
       if (!deleted) return res.status(404).json({ error: "Goal not found" });
       res.status(204).send();
+    } catch { res.status(500).json({ error: "Failed to delete goal" }); }
+  });
+
+  // ─── Notes (Not Defteri) ─────────────────────────────────────────────────────
+  app.get("/api/notes", async (req, res) => {
+    try {
+      const { category, isPinned, isArchived } = req.query;
+      const notesList = await storage.getNotes({
+        category: category as string | undefined,
+        isPinned: isPinned === "true" ? true : undefined,
+        isArchived: isArchived === "true" ? true : false,
+      });
+      res.json(notesList);
+    } catch { res.status(500).json({ error: "Failed to fetch notes" }); }
+  });
+
+  app.get("/api/notes/:id", async (req, res) => {
+    try {
+      const note = await storage.getNote(req.params.id);
+      if (!note) return res.status(404).json({ error: "Note not found" });
+      res.json(note);
+    } catch { res.status(500).json({ error: "Failed to fetch note" }); }
+  });
+
+  app.post("/api/notes", async (req, res) => {
+    try {
+      const validated = insertNoteSchema.parse(req.body);
+      res.status(201).json(await storage.createNote(validated));
     } catch (error) {
-      res.status(500).json({ error: "Failed to delete goal" });
+      console.error("POST /api/notes error:", error);
+      res.status(400).json({ error: "Invalid note data", detail: String(error) });
+    }
+  });
+
+  app.patch("/api/notes/:id", async (req, res) => {
+    try {
+      const validated = insertNoteSchema.partial().parse(req.body);
+      const note = await storage.updateNote(req.params.id, validated);
+      if (!note) return res.status(404).json({ error: "Note not found" });
+      res.json(note);
+    } catch (error) {
+      console.error("PATCH /api/notes error:", error);
+      res.status(400).json({ error: "Invalid note data" });
+    }
+  });
+
+  app.delete("/api/notes/:id", async (req, res) => {
+    try {
+      const deleted = await storage.deleteNote(req.params.id);
+      if (!deleted) return res.status(404).json({ error: "Note not found" });
+      res.status(204).send();
+    } catch { res.status(500).json({ error: "Failed to delete note" }); }
+  });
+
+  // ─── Backup Export (full portfolio) ─────────────────────────────────────────
+  app.get("/api/backup/export", async (req, res) => {
+    try {
+      const [assetList, txList, incomeList, expenseList, goalList, debtList, subList, noteList] = await Promise.all([
+        storage.getAssets(),
+        storage.getTransactions(),
+        storage.getIncomes(),
+        storage.getExpenses(),
+        storage.getGoals(),
+        storage.getDebts(),
+        storage.getSubscriptions(),
+        storage.getNotes(),
+      ]);
+      const backup = {
+        version: "2.0",
+        exportedAt: new Date().toISOString(),
+        platform: "EkoS Portföy Takip",
+        data: {
+          assets: assetList,
+          transactions: txList,
+          incomes: incomeList,
+          expenses: expenseList,
+          goals: goalList,
+          debts: debtList,
+          subscriptions: subList,
+          notes: noteList,
+        },
+      };
+      res.setHeader("Content-Disposition", `attachment; filename="ekos_yedek_${new Date().toISOString().slice(0, 10)}.json"`);
+      res.setHeader("Content-Type", "application/json");
+      res.json(backup);
+    } catch (error) {
+      console.error("Backup export error:", error);
+      res.status(500).json({ error: "Yedek alınamadı" });
+    }
+  });
+
+  // ─── Backup Import (replaces all data) ───────────────────────────────────────
+  app.post("/api/backup/import", async (req, res) => {
+    try {
+      const body = req.body;
+      const data = body.data || body; // support both v1 and v2 format
+      const { assets: assetsData, transactions: txData, incomes: incomesData, expenses: expensesData,
+              goals: goalsData, debts: debtsData, subscriptions: subsData, notes: notesData } = data;
+
+      // Clear existing data first (replace mode) — order matters due to relations
+      const [existingAssets, existingTx, existingIncomes, existingExpenses,
+              existingGoals, existingDebts, existingSubs, existingNotes] = await Promise.all([
+        storage.getAssets(), storage.getTransactions(), storage.getIncomes(), storage.getExpenses(),
+        storage.getGoals(), storage.getDebts(), storage.getSubscriptions(), storage.getNotes(),
+      ]);
+      await Promise.all([
+        ...existingTx.map(t => storage.deleteTransaction(t.id)),
+        ...existingIncomes.map(i => storage.deleteIncome(i.id)),
+        ...existingExpenses.map(e => storage.deleteExpense(e.id)),
+        ...existingGoals.map(g => storage.deleteGoal(g.id)),
+        ...existingDebts.map(d => storage.deleteDebt(d.id)),
+        ...existingSubs.map(s => storage.deleteSubscription(s.id)),
+        ...existingNotes.map(n => storage.deleteNote(n.id)),
+      ]);
+      await Promise.all(existingAssets.map(a => storage.deleteAsset(a.id)));
+
+      const imported = { assets: 0, transactions: 0, incomes: 0, expenses: 0, goals: 0, debts: 0, subscriptions: 0, notes: 0 };
+
+      if (Array.isArray(assetsData)) {
+        for (const a of assetsData) {
+          try {
+            const validated = insertAssetSchema.parse({ type: a.type, name: a.name, symbol: a.symbol, market: a.market, quantity: a.quantity, averagePrice: a.averagePrice, currentPrice: a.currentPrice, currency: a.currency });
+            await storage.createAsset(validated);
+            imported.assets++;
+          } catch {}
+        }
+      }
+
+      if (Array.isArray(txData)) {
+        const currentAssets = await storage.getAssets();
+        for (const t of txData) {
+          try {
+            const validated = insertTransactionSchema.parse({ assetId: t.assetId, type: t.type, quantity: t.quantity, price: t.price, totalAmount: t.totalAmount, currency: t.currency, notes: t.notes, date: t.date });
+            await storage.createTransaction(validated);
+            imported.transactions++;
+          } catch {}
+        }
+      }
+
+      if (Array.isArray(incomesData)) {
+        for (const i of incomesData) {
+          try {
+            const validated = insertIncomeSchema.parse({ category: i.category, description: i.description, amount: i.amount, currency: i.currency, date: i.date, isRecurring: i.isRecurring || 0 });
+            await storage.createIncome(validated);
+            imported.incomes++;
+          } catch {}
+        }
+      }
+
+      if (Array.isArray(expensesData)) {
+        for (const e of expensesData) {
+          try {
+            const validated = insertExpenseSchema.parse({ category: e.category, description: e.description, amount: e.amount, currency: e.currency, date: e.date, isRecurring: e.isRecurring || 0 });
+            await storage.createExpense(validated);
+            imported.expenses++;
+          } catch {}
+        }
+      }
+
+      if (Array.isArray(goalsData)) {
+        for (const g of goalsData) {
+          try {
+            const validated = insertGoalSchema.parse({ title: g.title, emoji: g.emoji, targetAmount: g.targetAmount, currentAmount: g.currentAmount, monthlyContribution: g.monthlyContribution, targetDate: g.targetDate, color: g.color, notes: g.notes });
+            await storage.createGoal(validated);
+            imported.goals++;
+          } catch {}
+        }
+      }
+
+      if (Array.isArray(debtsData)) {
+        for (const d of debtsData) {
+          try {
+            const validated = insertDebtSchema.parse({ name: d.name, type: d.type, emoji: d.emoji, interestRate: d.interestRate, totalAmount: d.totalAmount, remainingAmount: d.remainingAmount, monthlyPayment: d.monthlyPayment, dueDay: d.dueDay, endDate: d.endDate, notes: d.notes, color: d.color });
+            await storage.createDebt(validated);
+            imported.debts++;
+          } catch {}
+        }
+      }
+
+      if (Array.isArray(subsData)) {
+        for (const s of subsData) {
+          try {
+            const validated = insertSubscriptionSchema.parse({ name: s.name, logo: s.logo, color: s.color, price: s.price, billingDay: s.billingDay, category: s.category, isActive: s.isActive });
+            await storage.createSubscription(validated);
+            imported.subscriptions++;
+          } catch {}
+        }
+      }
+
+      if (Array.isArray(notesData)) {
+        for (const n of notesData) {
+          try {
+            const validated = insertNoteSchema.parse({ title: n.title, content: n.content, category: n.category, tags: n.tags || [], mood: n.mood, assetTicker: n.assetTicker, isPinned: n.isPinned || 0, isArchived: n.isArchived || 0 });
+            await storage.createNote(validated);
+            imported.notes++;
+          } catch {}
+        }
+      }
+
+      res.json({
+        message: `İçe aktarma tamamlandı: ${imported.assets} varlık, ${imported.transactions} işlem, ${imported.incomes} gelir, ${imported.expenses} gider, ${imported.goals} hedef, ${imported.debts} borç, ${imported.notes} not`,
+        imported,
+      });
+    } catch (error) {
+      console.error("Backup import error:", error);
+      res.status(500).json({ error: "İçe aktarma sırasında hata oluştu" });
     }
   });
 
